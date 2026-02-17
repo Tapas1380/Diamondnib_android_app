@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "541713979906",
+    "project_id": "diamondnib",
+    "storage_bucket": "diamondnib.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541713979906:android:27c1564499d5b8b7a5251b",
+        "android_client_info": {
+          "package_name": "com.diamondnib.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "541713979906-smec0696d0r0cis9oug3meig9r2rnsa2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.diamondnib.app",
+            "certificate_hash": "5e7f05f7e2bcb502ebc1b0a57cb052a5ba262ce0"
+          }
+        },
+        {
+          "client_id": "541713979906-quom9eehq2geduha1nme6r5f8dndcttc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_auhKOOw6Aw6jzlW2IWfVjX7GE0UyoAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "541713979906-quom9eehq2geduha1nme6r5f8dndcttc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "541713979906-psru8nso8theupot4cg7gdsrlbasgp0e.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.diamondnib.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

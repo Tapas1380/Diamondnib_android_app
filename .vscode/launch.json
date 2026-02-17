@@ -1,0 +1,66 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "name": "Diamondnib_android-main",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "Diamondnib_android-main (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "Diamondnib_android-main (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "chewie",
+            "cwd": "packages/chewie",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "chewie (profile mode)",
+            "cwd": "packages/chewie",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "chewie (release mode)",
+            "cwd": "packages/chewie",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "vimeo",
+            "cwd": "packages/vimeo",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "vimeo (profile mode)",
+            "cwd": "packages/vimeo",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "vimeo (release mode)",
+            "cwd": "packages/vimeo",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

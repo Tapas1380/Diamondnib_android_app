@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Diamond Nib FM">
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="diamondnib">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <title>Diamond Nib</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase SDKs (compat version for better web support) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- iOS Apple login -->
+  <script type="text/javascript" src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
+  
+  <!-- SyncFusion -->
+  <script src="https://cdn.syncfusion.com/essential/js/scripts/ej2.base.min.js"></script>
+  
+  <!-- Google Sign-In Configuration -->
+  <meta name="google-signin-client_id" content="541713979906-quom9eehq2geduha1nme6r5f8dndcttc.apps.googleusercontent.com">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <!-- Flutter Web Initialization -->
+  <script src="flutter.js" defer></script>
+  <script>
+    // The value below is injected by flutter build, do not touch.
+    var serviceWorkerVersion = '{{flutter_service_worker_version}}';
+  </script>
+  
+  <script>
+    console.log('[FIREBASE] Starting Firebase initialization...');
+    
+    // Firebase configuration - Make sure these match your Firebase project settings
+    const firebaseConfig = {
+      apiKey: "AIzaSyAPzp2hzcftx96zzetHF1APMaANL73FB6I",
+      authDomain: "diamondnib.firebaseapp.com",
+      projectId: "diamondnib",
+      storageBucket: "diamondnib.firebasestorage.app",
+      messagingSenderId: "541713979906",
+      appId: "1:541713979906:web:5d0b4ca7847d4f39a5251b"
+    };
+
+    // Initialize Firebase
+    try {
+      console.log('[FIREBASE] Checking Firebase apps...');
+      
+      // Check if Firebase is already initialized
+      if (!firebase.apps.length) {
+        console.log('[FIREBASE] Initializing Firebase...');
+        const app = firebase.initializeApp(firebaseConfig);
+        console.log('[FIREBASE] Firebase initialized successfully');
+      } else {
+        console.log('[FIREBASE] Firebase already initialized, using existing instance');
+      }
+      
+      // Make Firebase Auth available globally
+      console.log('[FIREBASE] Initializing Firebase Auth...');
+      window.firebaseAuth = firebase.auth();
+      
+      // Log Firebase Auth state changes
+      firebase.auth().onAuthStateChanged((user) => {
+        console.log('[FIREBASE] Auth state changed:', user ? 'User signed in' : 'No user');
+      });
+      
+      console.log('[FIREBASE] Firebase setup complete');
+      
+    } catch (error) {
+      console.error('Firebase initialization error:', error);
+    }
+    
+    // Debug function to check Firebase Auth state
+    window.checkAuthState = function() {
+      const user = firebase.auth().currentUser;
+      console.log('Current user:', user);
+      return user;
+    };
+  </script>
+
+  <!-- Open new Tab -->
+  <script src="script.js" type="application/javascript"></script>
+
+  <style>
+    .container {
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      /* Default Axis is X*/
+      justify-content: center;
+      /* Main Axis */
+      align-items: center;
+      /* Cross Axis */
+    }
+
+    body {
+      width: 100%;
+      height: 100%;
+      background-color: black;
+    }
+
+    .indicator {
+      width: 50vw;
+    }
+  </style>
+</head>
+
+<body style="overflow: hidden">
+
+  <div id="loading_indicator" class="container">
+    <img class="indicator" src="./assets/loading.gif" />
+  </div>
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+  <script type="text/javascript">
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "//cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js";
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest" type="application/javascript"></script>
+
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Check if Flutter is available and use the correct initialization method
+      if (typeof _flutter !== 'undefined') {
+        console.log('Flutter available, initializing...');
+        
+        // For Flutter 3.19.6, use the direct initialization approach
+        if (_flutter.loader && typeof _flutter.loader.loadEntrypoint === 'function') {
+          // New Flutter loader API
+          _flutter.loader.loadEntrypoint({
+            serviceWorker: {
+              serviceWorkerVersion: serviceWorkerVersion,
+            },
+            onEntrypointLoaded: function(engineInitializer) {
+              console.log('Flutter entrypoint loaded via loadEntrypoint');
+              engineInitializer.initializeEngine().then(function(appRunner) {
+                console.log('Flutter engine initialized, running app');
+                appRunner.runApp();
+                
+                // Hide loading screen after Flutter app starts
+                setTimeout(function() {
+                  const loadingIndicator = document.getElementById('loading_indicator');
+                  if (loadingIndicator) {
+                    console.log('Hiding loading screen...');
+                    loadingIndicator.style.display = 'none';
+                  }
+                }, 3000); // Wait 3 seconds for app to initialize
+                
+              }).catch(function(error) {
+                
+                // Hide loading screen after Flutter app starts
+                setTimeout(function() {
+                  const loadingIndicator = document.getElementById('loading_indicator');
+                  if (loadingIndicator) {
+                    console.log('Hiding loading screen...');
+                    loadingIndicator.style.display = 'none';
+                  }
+                }, 3000); // Wait 3 seconds for app to initialize
+                
+              }).catch(function(error) {
+                console.error('Flutter engine initialization failed:', error);
+              });
+            }
+          }).catch(function(error) {
+            console.error('Flutter load failed:', error);
+          });
+        } else {
+          console.error('Flutter loader methods not available:', Object.keys(_flutter.loader || {}));
+        }
+      } else {
+        console.error('Flutter (_flutter) not available');
+      }
+    });
+  </script>
+  <script src="main.dart.js" type="application/javascript"></script>
+  <script type="text/javascript">window.flutterWebRenderer = "html";</script>
+
+</body>
+
+</html>
