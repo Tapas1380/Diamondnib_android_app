@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:diamondnib/pages/bottombar.dart';
@@ -34,6 +35,34 @@ class OTPVerifyState extends State<OTPVerify> {
   String? verificationId, strDeviceType, strDeviceToken;
   int? forceResendingToken;
   bool codeResended = false;
+  Timer? _resendCooldownTimer;
+  int _resendCooldownSeconds = 0;
+
+  bool get _canResend => _resendCooldownSeconds <= 0;
+
+  void _startResendCooldown([int seconds = 20]) {
+    _resendCooldownTimer?.cancel();
+    _resendCooldownSeconds = seconds;
+    if (mounted) {
+      setState(() {});
+    }
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _resendCooldownSeconds = 0;
+        });
+      } else {
+        setState(() {
+          _resendCooldownSeconds -= 1;
+        });
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -65,6 +94,8 @@ class OTPVerifyState extends State<OTPVerify> {
   void dispose() {
     FocusManager.instance.primaryFocus?.unfocus();
     numberController.dispose();
+    pinPutController.dispose();
+    _resendCooldownTimer?.cancel();
     super.dispose();
   }
 
@@ -177,17 +208,15 @@ class OTPVerifyState extends State<OTPVerify> {
                       /* Resend */
                       InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: () {
-                          if (!codeResended) {
-                            codeSend(true);
-                          }
-                        },
+                        onTap: _canResend ? () {
+                          codeSend(true);
+                        } : null,
                         child: Container(
                           alignment: Alignment.centerRight,
                           constraints: const BoxConstraints(minWidth: 70),
                           padding: const EdgeInsets.all(5),
                           child: MyText(
-                            color: yellow,
+                            color: _canResend ? yellow : gray,
                             text: "resend",
                             multilanguage: true,
                             fontsizeNormal: 15,
@@ -199,6 +228,23 @@ class OTPVerifyState extends State<OTPVerify> {
                           ),
                         ),
                       ),
+                      if (!_canResend)
+                        Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(top: 2),
+                          child: MyText(
+                            color: gray,
+                            text:
+                                "Resend available in ${_resendCooldownSeconds}s",
+                            multilanguage: false,
+                            fontsizeNormal: 12,
+                            fontweight: FontWeight.w400,
+                            maxline: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textalign: TextAlign.right,
+                            fontstyle: FontStyle.normal,
+                          ),
+                        ),
                       const SizedBox(height: 30),
                       /* Confirm Button */
                       InkWell(
@@ -265,6 +311,7 @@ class OTPVerifyState extends State<OTPVerify> {
   codeSend(bool isResend) async {
     printLog("codeSend mobileNumber ===> ${widget.mobileNumber.toString()}");
     codeResended = isResend;
+    _startResendCooldown(20);
     Utils.showProgress(context, prDialog);
     await phoneSignIn(phoneNumber: widget.mobileNumber.toString());
     prDialog.hide();

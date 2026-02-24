@@ -16,7 +16,6 @@ import 'package:intl/intl.dart';
 import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_grid_list/responsive_grid_list.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ViewRewards extends StatefulWidget {
   const ViewRewards({super.key});
@@ -204,11 +203,12 @@ await rewardProvider.getEarnCoins();
   }
 Widget watchAdSection() {
   bool canWatchAd = watchedAdsCount < maxAdsPerDay;
+  bool adsAvailable = AdHelper.isRewardedAdAvailable();
 
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
     child: InkWell(
-      onTap: canWatchAd
+      onTap: canWatchAd && adsAvailable
           ? () async {
               if (Constant.userID != null) {
                 final earntransaction =
@@ -249,7 +249,11 @@ await sharedPre.save('${userId}_lastWatchDate',
                     context: context, isHome: false, isReplace: false);
               }
             }
-          : null, // disabled after limit
+          : canWatchAd
+              ? () {
+                  Utils.showToast("Ad is not available right now");
+                }
+              : null, // disabled after limit
       child: Opacity(
         opacity: canWatchAd ? 1.0 : 0.5,
         child: Container(
@@ -284,7 +288,9 @@ await sharedPre.save('${userId}_lastWatchDate',
               const SizedBox(width: 8),
               Text(
                 canWatchAd
-                    ? "Watch Ad to earn coins (${watchedAdsCount}/$maxAdsPerDay)"
+                    ? (adsAvailable
+                        ? "Watch Ad to earn coins (${watchedAdsCount}/$maxAdsPerDay)"
+                        : "Ad is not available right now")
                     : "Limit reached (${watchedAdsCount}/$maxAdsPerDay)",
                 style: const TextStyle(
                   color: Colors.white,
@@ -401,8 +407,6 @@ await sharedPre.save('${userId}_lastWatchDate',
                                 final earntransaction =
                                     Provider.of<RewardProvider>(context,
                                         listen: false);
-                                SharedPreferences prefs =
-                                    await SharedPreferences.getInstance();
 String userId = Constant.userID.toString();
 
 int lastClaimedTimestamp =
@@ -423,6 +427,12 @@ int lastIndex =
                                 int newIndex = lastIndex;
 
                                 if (hoursDifference >= 24) {
+                                  // ✅ Check if ads are available
+                                  if (!AdHelper.isRewardedAdAvailable()) {
+                                    Utils.showToast("Ad is not available right now");
+                                    return;
+                                  }
+                                  
                                   newDay = (lastClaimedDay % 7) + 1;
                                   newIndex = (lastIndex % 7) + 1;
                                   if (!context.mounted) return;

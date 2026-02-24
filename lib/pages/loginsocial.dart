@@ -43,7 +43,7 @@ class LoginSocialState extends State<LoginSocial> {
   final numberController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  bool isOTPMode = false;
+  bool isOTPMode = true;
   bool isPasswordVisible = false;
   String? mobileNumber,
       email,
@@ -529,7 +529,7 @@ class LoginSocialState extends State<LoginSocial> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: MyText(
                           color: colorAccent,
-                          text: isOTPMode ? "Login with Email & Password" : "Other login option",
+                          text: isOTPMode ? "Other login option" : "Login with Phone Number",
                           fontsizeNormal: 14,
                           fontsizeWeb: 15,
                           multilanguage: false,

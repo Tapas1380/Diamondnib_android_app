@@ -35,6 +35,7 @@ class AdHelper {
 
   static InterstitialAd? _interstitialAd;
   static RewardedAd? _rewardedAd;
+  static bool _isRewardedAdLoading = false;
 
   static AdRequest request = AdRequest(
     keywords: <String>[Constant.appName, 'Flutter App'],
@@ -224,7 +225,6 @@ class AdHelper {
     printLog('maxInterstitialAdIOSclick =======> $maxInterstitialAdIOSclick');
     if (_interstitialAd == null) {
       printLog('Warning: attempt to show interstitial before loaded.');
-      callAction();
       return;
     }
     _interstitialAd?.fullScreenContentCallback = FullScreenContentCallback(
@@ -257,6 +257,7 @@ class AdHelper {
     if ((rewardad == "1" && Platform.isAndroid) ||
         (rewardadIos == "1" && Platform.isIOS)) {
       if (rewardedAdUnitId != "null" || rewardedAdUnitId.isNotEmpty) {
+        _isRewardedAdLoading = true;
         RewardedAd.load(
           adUnitId: rewardedAdUnitId,
           request: const AdRequest(),
@@ -264,11 +265,13 @@ class AdHelper {
             onAdLoaded: (RewardedAd ad) {
               printLog('$ad loaded.');
               _rewardedAd = ad;
+              _isRewardedAdLoading = false;
               _numRewardAttempts = 0;
             },
             onAdFailedToLoad: (LoadAdError error) {
               printLog('RewardedAd failed to load: $error');
               _rewardedAd = null;
+              _isRewardedAdLoading = false;
               _numRewardAttempts = (_numRewardAttempts ?? 0) + 1;
               if ((_numRewardAttempts ?? 0) <= (maxRewardAdclick ?? 0)) {
                 createRewardedAd();
@@ -278,6 +281,17 @@ class AdHelper {
         );
       }
     }
+  }
+
+  static bool isRewardedAdAvailable() {
+    if (!kIsWeb) {
+      if (Platform.isAndroid) {
+        return rewardad == "1" && _rewardedAd != null && !_isRewardedAdLoading;
+      } else if (Platform.isIOS) {
+        return rewardadIos == "1" && _rewardedAd != null && !_isRewardedAdLoading;
+      }
+    }
+    return false;
   }
 
   static rewardedAd(BuildContext context, VoidCallback callAction) {
@@ -297,18 +311,19 @@ class AdHelper {
     printLog('maxRewardAdIOSclick ====> $maxRewardAdIOSclick');
     if (_rewardedAd == null) {
       printLog('Warning: attempt to show rewarded before loaded.');
-      callAction();
       return;
     }
     _rewardedAd?.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (RewardedAd ad) =>
-          printLog('ad onAdShowedFullScreenContent.'),
+      onAdShowedFullScreenContent: (RewardedAd ad) {
+        printLog('ad onAdShowedFullScreenContent.');
+        // ✅ Start preloading next ad while current ad is showing
+        createRewardedAd();
+      },
       onAdDismissedFullScreenContent: (RewardedAd ad) {
         _numRewardAttempts = 0;
         printLog('$ad onAdDismissedFullScreenContent.');
         callAction();
         ad.dispose();
-        createRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) {
         printLog('$ad onAdFailedToShowFullScreenContent: $error');
