@@ -3,6 +3,7 @@ import 'package:diamondnib/model/download_item.dart';
 import 'package:diamondnib/pages/bottombar.dart';
 import 'package:diamondnib/provider/connectivityprovider.dart';
 import 'package:diamondnib/provider/downloadprovider.dart';
+import 'package:diamondnib/provider/episodeprovider.dart';
 import 'package:diamondnib/provider/musicdetailprovider.dart';
 import 'package:diamondnib/provider/musicprovider.dart';
 import 'package:diamondnib/subscription/audiobuy.dart';
@@ -397,19 +398,20 @@ void _initAudioPositionHandling() {
       
       // Small delay to ensure the track has actually started loading
       await Future.delayed(const Duration(milliseconds: 100));
-      
       final currentItem = audioPlayer.sequenceState?.currentSource?.tag as MediaItem?;
       
       print('🔒 ===== TRACK CHANGE DETECTED =====');
       print('🔒 Track changed to index: $index');
-      print('🔒 Current item: ${currentItem?.title}');
+      print('🔒 Current item: ${currentItem?.title} (ID: ${currentItem?.id})');
       
       if (currentItem != null) {
         // Check the episode list data first
         bool isLockedInList = false;
         bool foundInList = false;
         
-        if (musicDetailProvider.podcastEpisodeList != null) {
+        // Try MusicDetailProvider.podcastEpisodeList FIRST
+        if (musicDetailProvider.podcastEpisodeList != null && musicDetailProvider.podcastEpisodeList!.isNotEmpty) {
+          print('🔒 Searching in musicDetailProvider.podcastEpisodeList (${musicDetailProvider.podcastEpisodeList?.length } items)');
           for (var episode in musicDetailProvider.podcastEpisodeList!) {
             if (episode.id.toString() == currentItem.id) {
               foundInList = true;
@@ -417,20 +419,58 @@ void _initAudioPositionHandling() {
               final isPaid = (episode.isAudioPaid == 1);
               final isNotBought = (episode.isBuy == 0 || episode.isBuy?.toString() == '0');
               isLockedInList = isPaid && isNotBought;
-              print('🔒 Checked episode list - isPaid: $isPaid, isNotBought: $isNotBought, isLocked: $isLockedInList');
+              print('🔒 ✅ Found episode in musicDetailProvider:');
+              print('🔒   - ID: ${episode.id}, Title: ${episode.name}');
+              print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}');
+              print('🔒   - LOCKED: $isLockedInList');
+              
+              // 🔓 Update MediaItem extras with fresh data
+              if (currentItem.extras != null && isNotBought == false) {
+                print('🔒 ✅ Updating MediaItem: is_buy=${episode.isBuy}');
+                (currentItem.extras as Map)['is_buy'] = episode.isBuy;
+              }
               break;
             }
           }
         }
         
-        // Fallback: If episode not found in list, check MediaItem extras
+        // FALLBACK: Try EpisodeProvider.audioList if not found  
+        if (!foundInList && mounted) {
+          final episodeProvider = context.read<EpisodeProvider>();
+          if (episodeProvider.audioList != null && episodeProvider.audioList!.isNotEmpty) {
+            print('🔒 Episode not in musicDetailProvider, checking EpisodeProvider.audioList (${episodeProvider.audioList?.length} items)');
+            for (var episode in episodeProvider.audioList!) {
+              if (episode.id.toString() == currentItem.id) {
+                foundInList = true;
+                final isPaid = (episode.isAudioPaid == 1);
+                final isNotBought = (episode.isBuy == 0 || episode.isBuy?.toString() == '0');
+                isLockedInList = isPaid && isNotBought;
+                print('🔒 ✅ Found episode in EpisodeProvider:');
+                print('🔒   - ID: ${episode.id}, Title: ${episode.name}');
+                print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}');
+                print('🔒   - LOCKED: $isLockedInList');
+                
+                // 🔓 Update MediaItem extras
+                if (currentItem.extras != null && isNotBought == false) {
+                  print('🔒 ✅ Updating MediaItem: is_buy=${episode.isBuy}');
+                  (currentItem.extras as Map)['is_buy'] = episode.isBuy;
+                }
+                break;
+              }
+            }
+          }
+        }
+        
+        // FINAL FALLBACK: Check MediaItem extras if not found in either list
         if (!foundInList && currentItem.extras != null) {
           final isAudioPaid = currentItem.extras!['is_audio_paid'];
           final isBuy = currentItem.extras!['is_buy'];
           final isPaid = (isAudioPaid == 1 || isAudioPaid == '1' || isAudioPaid?.toString() == '1');
           final isNotBought = (isBuy == 0 || isBuy == '0' || isBuy?.toString() == '0');
           isLockedInList = isPaid && isNotBought;
-          print('🔒 Episode not in list, checked MediaItem extras - isLocked: $isLockedInList');
+          print('🔒 Episode not in any list, using MediaItem.extras:');
+          print('🔒   - is_audio_paid: $isAudioPaid, is_buy: $isBuy');
+          print('🔒   - LOCKED: $isLockedInList');
         }
         
         // If locked, prevent player from staying on this track
@@ -451,7 +491,7 @@ void _initAudioPositionHandling() {
             Utils.showToast("This episode is locked. Please purchase to listen.");
           }
           
-          // Don't update lastCheckedIndex here - we want to check again if user tries to skip to this locked episode
+          //  Don't update lastCheckedIndex here - we want to check again if user tries to skip to this locked episode
           return;
         } else {
           print('🔒 ✅ Episode is unlocked (checked from episode list)');
@@ -460,7 +500,7 @@ void _initAudioPositionHandling() {
           lastCheckedIndex = index;
         }
       }
-      print('🔒 ===== END TRACK CHANGE =====');
+      print('🔒 ===== END TRACK CHANGE (isLocked=isLockedInList) =====');
     }
   });
   

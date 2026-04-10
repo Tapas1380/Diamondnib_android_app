@@ -4,6 +4,7 @@ import 'package:diamondnib/pages/bottombar.dart';
 import 'package:diamondnib/provider/generalprovider.dart';
 import 'package:diamondnib/provider/homeprovider.dart';
 import 'package:diamondnib/provider/sectiondataprovider.dart';
+import 'package:diamondnib/services/meta_tracking_service.dart';
 import 'package:diamondnib/utils/color.dart';
 import 'package:diamondnib/utils/constant.dart';
 import 'package:diamondnib/utils/utils.dart';
@@ -130,6 +131,12 @@ class SignupPageState extends State<SignupPage> {
           );
 
           Constant.userID = user.id.toString();
+
+          await MetaTrackingService.instance.logCompleteRegistration(
+            userId: (user.id ?? '').toString(),
+            email: (user.email ?? '').toString(),
+            phone: (user.mobile ?? '').toString(),
+          );
 
           await homeProvider.setSelectedTab(0);
           await sectionDataProvider.getSectionList("0", "1", 1);

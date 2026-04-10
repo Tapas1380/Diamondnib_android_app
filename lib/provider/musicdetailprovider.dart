@@ -491,4 +491,36 @@ class MusicDetailProvider extends ChangeNotifier {
     podcastcurrentPage = 0;
     podcastisMorePage = false;
   }
+
+  // Method to update isBuy status for audio episode and notify listeners
+  void updateAudioEpisodeBuyStatus(dynamic episodeId) {
+    debugPrint("=== updateAudioEpisodeBuyStatus called in MusicDetailProvider ===");
+    debugPrint("Looking for episode ID: $episodeId");
+    
+    if (podcastEpisodeList != null) {
+      for (int i = 0; i < podcastEpisodeList!.length; i++) {
+        var item = podcastEpisodeList![i];
+        if (item.id.toString() == episodeId.toString()) {
+          debugPrint("=== FOUND MATCHING EPISODE in podcastEpisodeList ===");
+          debugPrint("Before update - isBuy: ${item.isBuy}");
+          item.isBuy = 1;
+          debugPrint("After update - isBuy: ${item.isBuy}");
+        }
+      }
+    }
+    
+    if (epidoseByPodcastModel.result != null) {
+      for (int i = 0; i < epidoseByPodcastModel.result!.length; i++) {
+        var item = epidoseByPodcastModel.result![i];
+        if (item.id.toString() == episodeId.toString()) {
+          debugPrint("=== FOUND MATCHING EPISODE in epidoseByPodcastModel ===");
+          debugPrint("Before update - isBuy: ${item.isBuy}");
+          item.isBuy = 1;
+          debugPrint("After update - isBuy: ${item.isBuy}");
+        }
+      }
+    }
+    notifyListeners();
+    debugPrint("=== notifyListeners called ===");
+  }
 }

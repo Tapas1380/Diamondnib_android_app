@@ -3,11 +3,14 @@ import 'dart:io';
 
 import 'package:diamondnib/pages/bottombar.dart';
 import 'package:diamondnib/provider/generalprovider.dart';
+import 'package:diamondnib/services/meta_tracking_service.dart';
 import 'package:diamondnib/utils/color.dart';
 import 'package:diamondnib/utils/constant.dart';
 import 'package:diamondnib/utils/sharedpre.dart';
 import 'package:diamondnib/widget/mytext.dart';
 import 'package:diamondnib/utils/utils.dart';
+import 'package:flutter/material.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +18,6 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:pinput/pinput.dart';
 import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/material.dart';
 
 class OTPVerify extends StatefulWidget {
   final String mobileNumber;
@@ -447,6 +449,12 @@ class OTPVerifyState extends State<OTPVerify> {
         Constant.userID =
             generalProvider.loginOTPModel.result?[0].id.toString();
         printLog('Constant userID ==>>userID ${Constant.userID}');
+
+        await MetaTrackingService.instance.logCompleteRegistration(
+          userId: (generalProvider.loginOTPModel.result?[0].id ?? '').toString(),
+          email: (generalProvider.loginOTPModel.result?[0].email ?? '').toString(),
+          phone: (generalProvider.loginOTPModel.result?[0].mobile ?? '').toString(),
+        );
 
         // prDialog.hide();
         if (!mounted) return;

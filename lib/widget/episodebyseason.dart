@@ -29,6 +29,7 @@ import 'package:diamondnib/model/episodebycontentmodel.dart';
 import 'package:diamondnib/subscription/subscription.dart';
 // import 'package:diamondnib/model/episodebycontentmodel.dart' as episode;
 import 'package:diamondnib/provider/episodeprovider.dart';
+import 'package:diamondnib/provider/musicdetailprovider.dart';
 import 'package:diamondnib/provider/showdetailsprovider.dart';
 import 'package:diamondnib/utils/color.dart';
 import 'package:diamondnib/utils/constant.dart';
@@ -611,54 +612,45 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
     required int? isAudioPaid,
     required int? isAudioCoin,
   }) async {
+    printLog("🎵 ===== playAudio CALLED =====");
     printLog("playingType =====>>>>>> ? $playingType");
     printLog("episodeid =====>>>>>> ? $episodeid");
     printLog("contentid =====>>>>>> ? $contentid");
-    printLog("podcastimage =====>>>>>> ? $podcastimage");
-    printLog("contentUserid =====>>>>>> ? $contentUserid");
-    printLog("position =====>>>>>> ? $position");
-    printLog(
-        "sectionBannerList =====>>>>>> ? ${jsonEncode(sectionBannerList)}");
-    printLog("playlistImages =====>>>>>> ? $playlistImages");
+    printLog("isBuy =====>>>>>> ? $isBuy (type: ${isBuy.runtimeType})");
+    printLog("isAudioPaid =====>>>>>> ? $isAudioPaid");
+    printLog("isAudioCoin =====>>>>>> ? $isAudioCoin");
     printLog("contentName =====>>>>>> ? $contentName");
 
     if (Constant.userID != null) {
-      if (isAudioPaid == 1) {
-        if (isBuy == "0") {
-          if (kIsWeb) {
-            openSubscriptionDialog(
-              position,
-              isAudioCoin,
-              contentName,
-              1,
-              episodeid,
-              contentid,
-            );
-          } else {
-            openBottomSheet(
-              position,
-              isAudioCoin,
-              contentName,
-              1,
-              episodeid,
-              contentid,
-            );
-          }
+      // Check purchase status
+      final isPaid = (isAudioPaid == 1);
+      final isNotBought = (isBuy == "0" || isBuy == 0 || isBuy?.toString() == '0');
+      
+      printLog("🎵 Purchase check - isPaid: $isPaid, isNotBought: $isNotBought");
+      
+      if (isPaid && isNotBought) {
+        printLog("🎵 ⛔ Episode is LOCKED - showing purchase dialog");
+        if (kIsWeb) {
+          openSubscriptionDialog(
+            position,
+            isAudioCoin,
+            contentName,
+            1,
+            episodeid,
+            contentid,
+          );
         } else {
-          musicManager.setInitialMusic(
-              position,
-              playingType,
-              sectionBannerList,
-              contentid,
-              addView(playingType, episodeid, contentid),
-              false,
-              0,
-              isBuy ?? "",
-              isAudioPaid ?? 0,
-              "audioBook",
-              "0");
+          openBottomSheet(
+            position,
+            isAudioCoin,
+            contentName,
+            1,
+            episodeid,
+            contentid,
+          );
         }
       } else {
+        printLog("🎵 ✅ Episode is UNLOCKED - starting playback");
         musicManager.setInitialMusic(
             position,
             playingType,
@@ -672,7 +664,6 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
             "audioBook",
             "0");
       }
-      // }
     } else {
       if (kIsWeb) {
         Utils.buildWebAlertDialog(context, "login", "")
@@ -1066,7 +1057,7 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
                           debugPrint("Coins required: $coins (type: ${coins.runtimeType})");
                           debugPrint("User wallet coins: ${profileProvider.profileModel.result?[0].walletCoin}");
                           
-                          // Convert coins to int for proper comparison
+                          // Convert coins to int for proper comparison 
                           int requiredCoins = coins is int ? coins : int.tryParse(coins.toString()) ?? 0;
                           int userCoins = profileProvider.profileModel.result?[0].walletCoin ?? 0;
                           
@@ -1103,8 +1094,12 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
                               
                               debugPrint("=== UPDATING LOCAL DATA ===");
                               
-                              // Use the provider method to update isBuy and notify listeners
+                              // Update BOTH providers - critical for immediate playback!
                               episodeProvider.updateAudioEpisodeBuyStatus(episodeID);
+                              
+                              // 🔓 Also update MusicDetailProvider for lock check
+                              final musicDetailProvider = Provider.of<MusicDetailProvider>(context, listen: false);
+                              musicDetailProvider.updateAudioEpisodeBuyStatus(episodeID);
                               
                               // Refresh profile to update coin balance
                               debugPrint("=== REFRESHING PROFILE ===");
@@ -1669,8 +1664,12 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
                                     
                                     debugPrint("=== UPDATING LOCAL DATA ===");
                                     
-                                    // Use the provider method to update isBuy and notify listeners
+                                    // Update BOTH providers - critical for immediate playback!
                                     episodeProvider.updateAudioEpisodeBuyStatus(episodeID);
+                                    
+                                    // 🔓 Also update MusicDetailProvider for lock check
+                                    final musicDetailProvider = Provider.of<MusicDetailProvider>(context, listen: false);
+                                    musicDetailProvider.updateAudioEpisodeBuyStatus(episodeID);
                                     
                                     // Refresh profile to update coin balance
                                     debugPrint("=== REFRESHING PROFILE ===");

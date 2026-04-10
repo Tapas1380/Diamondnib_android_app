@@ -21,7 +21,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- ADDED for FilteringTextInputFormatter
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -73,6 +72,8 @@ class LoginSocialState extends State<LoginSocial> {
         strDeviceToken = await FirebaseMessaging.instance.getToken();
       } else {
         strDeviceType = "2";
+        // final status = await OneSignal.shared.getDeviceState();
+        // strDeviceToken = status?.userId;
       }
     } catch (e) {
       printLog("_getDeviceToken Exception ===> $e");
@@ -189,6 +190,15 @@ class LoginSocialState extends State<LoginSocial> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Container(
+                  //   width: 170,
+                  //   height: 60,
+                  //   alignment: Alignment.centerLeft,
+                  //   child: MyImage(
+                  //     fit: BoxFit.fill,
+                  //     imagePath: "appicon.png",
+                  //   ),
+                  // ),
                   const SizedBox(height: 25),
                   MyText(
                     color: white,
@@ -224,10 +234,14 @@ class LoginSocialState extends State<LoginSocial> {
                       width: MediaQuery.of(context).size.width,
                       height: 50,
                       decoration: BoxDecoration(
-                        border: Border.all(color: white, width: 0.7),
+                        border: Border.all(
+                          color: white,
+                          width: 0.7,
+                        ),
                         color: transparentColor,
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(11)),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(11),
+                        ),
                       ),
                       child: TextField(
                         controller: emailController,
@@ -236,8 +250,7 @@ class LoginSocialState extends State<LoginSocial> {
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 15),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
                           hintStyle: GoogleFonts.inter(
                             color: gray,
                             fontSize: 14,
@@ -254,10 +267,14 @@ class LoginSocialState extends State<LoginSocial> {
                       width: MediaQuery.of(context).size.width,
                       height: 50,
                       decoration: BoxDecoration(
-                        border: Border.all(color: white, width: 0.7),
+                        border: Border.all(
+                          color: white,
+                          width: 0.7,
+                        ),
                         color: transparentColor,
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(11)),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(11),
+                        ),
                       ),
                       child: TextField(
                         controller: passwordController,
@@ -267,8 +284,7 @@ class LoginSocialState extends State<LoginSocial> {
                         textInputAction: TextInputAction.done,
                         decoration: InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 15),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
                           hintStyle: GoogleFonts.inter(
                             color: gray,
                             fontSize: 14,
@@ -277,9 +293,7 @@ class LoginSocialState extends State<LoginSocial> {
                           hintText: "Enter your password",
                           suffixIcon: IconButton(
                             icon: Icon(
-                              isPasswordVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
+                              isPasswordVisible ? Icons.visibility : Icons.visibility_off,
                               color: gray,
                             ),
                             onPressed: () {
@@ -298,6 +312,7 @@ class LoginSocialState extends State<LoginSocial> {
                       alignment: Alignment.centerRight,
                       child: InkWell(
                         onTap: () {
+                          // TODO: Implement forgot password functionality
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => ForgotPasswordPage(
@@ -329,11 +344,9 @@ class LoginSocialState extends State<LoginSocial> {
                     InkWell(
                       onTap: () {
                         if (emailController.text.toString().isEmpty) {
-                          Utils.showSnackbar(context, "info",
-                              "Please enter your email", false);
+                          Utils.showSnackbar(context, "info", "Please enter your email", false);
                         } else if (passwordController.text.toString().isEmpty) {
-                          Utils.showSnackbar(context, "info",
-                              "Please enter your password", false);
+                          Utils.showSnackbar(context, "info", "Please enter your password", false);
                         } else {
                           _emailPasswordLogin();
                         }
@@ -344,7 +357,10 @@ class LoginSocialState extends State<LoginSocial> {
                         height: 52,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [colorAccent, yellow],
+                            colors: [
+                              colorAccent,
+                              yellow,
+                            ],
                             begin: FractionalOffset(0.0, 0.0),
                             end: FractionalOffset(1.0, 0.2),
                           ),
@@ -371,8 +387,7 @@ class LoginSocialState extends State<LoginSocial> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const SignupPage(ishome: false),
+                              builder: (context) => const SignupPage(ishome: false),
                             ),
                           );
                         },
@@ -399,10 +414,14 @@ class LoginSocialState extends State<LoginSocial> {
                       width: MediaQuery.of(context).size.width,
                       height: 50,
                       decoration: BoxDecoration(
-                        border: Border.all(color: white, width: 0.7),
+                        border: Border.all(
+                          color: white,
+                          width: 0.7,
+                        ),
                         color: transparentColor,
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(11)),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(11),
+                        ),
                       ),
                       child: IntlPhoneField(
                         disableLengthCheck: true,
@@ -413,11 +432,6 @@ class LoginSocialState extends State<LoginSocial> {
                         showCountryFlag: false,
                         showDropdownIcon: false,
                         initialCountryCode: 'IN',
-                        // ✅ FIX: Only allow digits, max 10 characters
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
-                        ],
                         dropdownTextStyle: GoogleFonts.inter(
                           color: white,
                           fontSize: 16,
@@ -454,19 +468,13 @@ class LoginSocialState extends State<LoginSocial> {
                       onTap: () {
                         printLog("Click mobileNumber ==> $mobileNumber");
                         if (numberController.text.toString().isEmpty) {
-                          // ✅ FIX: Show error if empty
                           Utils.showSnackbar(
                               context, "info", "login_with_mobile_note", true);
-                        } else if (numberController.text.trim().length != 10) {
-                          // ✅ FIX: Validate exactly 10 digits
-                          Utils.showSnackbar(context, "info",
-                              "Please enter a valid 10-digit mobile number", false);
                         } else {
                           printLog("mobileNumber ==> $mobileNumber");
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  OTPVerify(mobileNumber ?? ""),
+                              builder: (context) => OTPVerify(mobileNumber ?? ""),
                             ),
                           );
                         }
@@ -477,7 +485,10 @@ class LoginSocialState extends State<LoginSocial> {
                         height: 52,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [colorAccent, yellow],
+                            colors: [
+                              colorAccent,
+                              yellow,
+                            ],
                             begin: FractionalOffset(0.0, 0.0),
                             end: FractionalOffset(1.0, 0.2),
                           ),
@@ -518,9 +529,7 @@ class LoginSocialState extends State<LoginSocial> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: MyText(
                           color: colorAccent,
-                          text: isOTPMode
-                              ? "Other login option"
-                              : "Login with Phone Number",
+                          text: isOTPMode ? "Other login option" : "Login with Phone Number",
                           fontsizeNormal: 14,
                           fontsizeWeb: 15,
                           multilanguage: false,
@@ -650,8 +659,11 @@ class LoginSocialState extends State<LoginSocial> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.apple_rounded,
-                                size: 38, color: black),
+                            const Icon(
+                              Icons.apple_rounded,
+                              size: 38,
+                              color: black,
+                            ),
                             const SizedBox(width: 15),
                             MyText(
                               color: black,
@@ -669,6 +681,49 @@ class LoginSocialState extends State<LoginSocial> {
                         ),
                       ),
                     ),
+
+                  /* Facebook Login Button */
+                  // Container(
+                  //   width: MediaQuery.of(context).size.width,
+                  //   height: 52,
+                  //   padding: const EdgeInsets.fromLTRB(25, 0, 25, 0),
+                  //   decoration: BoxDecoration(
+                  //     color: white,
+                  //     borderRadius: BorderRadius.circular(26),
+                  //   ),
+                  //   alignment: Alignment.center,
+                  //   child: InkWell(
+                  //     onTap: () {
+                  //       printLog("Clicked on : ====> loginWith Facebook");
+                  //       facebookLogin();
+                  //     },
+                  //     borderRadius: BorderRadius.circular(26),
+                  //     child: Row(
+                  //       mainAxisAlignment: MainAxisAlignment.center,
+                  //       children: [
+                  //         MyImage(
+                  //           width: 30,
+                  //           height: 30,
+                  //           imagePath: "ic_facebook.png",
+                  //           fit: BoxFit.contain,
+                  //         ),
+                  //         const SizedBox(width: 30),
+                  //         MyText(
+                  //           color: black,
+                  //           text: "loginwithfacebook",
+                  //           fontsizeNormal: 14,
+                  //           fontsizeWeb: 16,
+                  //           multilanguage: true,
+                  //           fontweight: FontWeight.w600,
+                  //           maxline: 1,
+                  //           overflow: TextOverflow.ellipsis,
+                  //           textalign: TextAlign.center,
+                  //           fontstyle: FontStyle.normal,
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -751,8 +806,7 @@ class LoginSocialState extends State<LoginSocial> {
       printLog('Email/Password Login Exception ===> $e');
       await prDialog.hide();
       if (!mounted) return;
-      Utils.showSnackbar(
-          context, "fail", "Login failed. Please try again.", false);
+      Utils.showSnackbar(context, "fail", "Login failed. Please try again.", false);
     }
   }
 
@@ -771,9 +825,7 @@ class LoginSocialState extends State<LoginSocial> {
       if (!mounted) return;
       Utils.showSnackbar(
         context,
-        (generalProvider.forgotPasswordModel.status == 200)
-            ? "success"
-            : "fail",
+        (generalProvider.forgotPasswordModel.status == 200) ? "success" : "fail",
         "${generalProvider.forgotPasswordModel.message}",
         false,
       );
@@ -819,6 +871,7 @@ class LoginSocialState extends State<LoginSocial> {
       String firebasedid = userCredential.user?.uid ?? "";
       printLog('firebasedid :===> $firebasedid');
 
+      /* Save PhotoUrl in File */
       mProfileImg =
           await Utils.saveImageInStorage(userCredential.user?.photoURL ?? "");
       printLog('mProfileImg :===> $mProfileImg');
@@ -829,24 +882,26 @@ class LoginSocialState extends State<LoginSocial> {
       printLog('===>Exp${e.message.toString()}');
       if (e.code.toString() == "user-not-found") {
       } else if (e.code == 'wrong-password') {
+        // Hide Progress Dialog
         await prDialog.hide();
         printLog('Wrong password provided.');
         Utils.showToast(wrongpassword);
       } else {
+        // Hide Progress Dialog
         await prDialog.hide();
       }
     }
   }
 
   /* Apple Login */
+  /// Generates a cryptographically secure random nonce
   String generateNonce([int length = 32]) {
-    const charset =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(
-        length, (_) => charset[random.nextInt(charset.length)]).join();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
   }
 
+  /// Returns the sha256 hash of [input] in hex notation.
   String sha256ofString(String input) {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
@@ -855,6 +910,7 @@ class LoginSocialState extends State<LoginSocial> {
 
   String _generateAppleProfilePicture(String? displayName, String? userId) {
     if (displayName != null && displayName.isNotEmpty) {
+      // Use initials for profile picture
       List<String> names = displayName.split(' ');
       String initials = '';
       if (names.isNotEmpty) {
@@ -863,29 +919,37 @@ class LoginSocialState extends State<LoginSocial> {
           initials += names[names.length - 1][0].toUpperCase();
         }
       }
+      // Use a service that generates avatars with initials
       return 'https://ui-avatars.com/api/?name=$initials&background=007AFF&color=fff&size=200';
     } else {
+      // Use user ID to generate a unique avatar
       return 'https://ui-avatars.com/api/?name=Apple&background=007AFF&color=fff&size=200';
     }
   }
 
   Future<User?> signInWithApple() async {
     printLog("=== Starting Apple Sign-In Process ===");
-
+    
+    // Check if Apple Sign-In is available
     final isAvailable = await SignInWithApple.isAvailable();
     printLog("Apple Sign-In available: $isAvailable");
-
+    
     if (!isAvailable) {
       Utils.showToast('Apple Sign-In is not available on this device');
       return null;
     }
-
+    
+    // To prevent replay attacks with the credential returned from Apple, we
+    // include a nonce in the credential request. When signing in in with
+    // Firebase, the nonce in the id token returned by Apple, is expected to
+    // match the sha256 hash of `rawNonce`.
     final rawNonce = generateNonce();
     final nonce = sha256ofString(rawNonce);
     printLog("Generated nonce - raw: $rawNonce, hashed: $nonce");
 
     try {
       printLog("Requesting Apple ID credential...");
+      // Request credential for the currently signed in Apple account.
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -895,25 +959,32 @@ class LoginSocialState extends State<LoginSocial> {
       );
 
       printLog("=== Apple Credential Data Analysis ===");
-      printLog("- givenName: '${appleCredential.givenName}'");
-      printLog("- familyName: '${appleCredential.familyName}'");
-      printLog("- email: '${appleCredential.email}'");
-      printLog("- userIdentifier: '${appleCredential.userIdentifier}'");
-
-      bool hasName =
-          (appleCredential.givenName != null &&
-              appleCredential.givenName!.isNotEmpty) ||
-          (appleCredential.familyName != null &&
-              appleCredential.familyName!.isNotEmpty);
-      bool hasEmail =
-          appleCredential.email != null && appleCredential.email!.isNotEmpty;
-
+      printLog("Apple credential received:");
+      printLog("- identityToken: ${appleCredential.identityToken?.substring(0, min(50, appleCredential.identityToken?.length ?? 0))}...");
+      printLog("- authorizationCode: ${appleCredential.authorizationCode?.substring(0, min(50, appleCredential.authorizationCode?.length ?? 0))}...");
+      printLog("- givenName: '${appleCredential.givenName}' (type: ${appleCredential.givenName.runtimeType})");
+      printLog("- familyName: '${appleCredential.familyName}' (type: ${appleCredential.familyName.runtimeType})");
+      printLog("- email: '${appleCredential.email}' (type: ${appleCredential.email.runtimeType})");
+      printLog("- userIdentifier: '${appleCredential.userIdentifier}' (type: ${appleCredential.userIdentifier.runtimeType})");
+      
+      // Analyze what data we received
+      bool hasName = (appleCredential.givenName != null && appleCredential.givenName!.isNotEmpty) ||
+                     (appleCredential.familyName != null && appleCredential.familyName!.isNotEmpty);
+      bool hasEmail = appleCredential.email != null && appleCredential.email!.isNotEmpty;
+      
+      printLog("=== Data Analysis ===");
+      printLog("Has name data: $hasName");
+      printLog("Has email data: $hasEmail");
+      printLog("Is first sign-in: ${hasName || hasEmail}");
+      printLog("Is returning user: ${!hasName && !hasEmail}");
+      
       if (appleCredential.identityToken == null) {
         printLog("ERROR: Apple identityToken is null");
         Utils.showToast('Failed to get Apple identity token');
         return null;
       }
 
+      // Create an `OAuthCredential` from the credential returned by Apple.
       printLog("Creating OAuth credential...");
       final oauthCredential = OAuthProvider("apple.com").credential(
         idToken: appleCredential.identityToken,
@@ -921,95 +992,109 @@ class LoginSocialState extends State<LoginSocial> {
         accessToken: appleCredential.authorizationCode,
       );
 
+      printLog("OAuth credential created successfully");
+      
+      // Sign in the user with Firebase. If the nonce we generated earlier does
+      // not match the nonce in `appleCredential.identityToken`, sign in will fail.
       printLog("Signing in with Firebase...");
       final authResult = await _auth.signInWithCredential(oauthCredential);
       printLog("Firebase auth result: ${authResult.user?.uid}");
 
+      // Handle display name - Apple only provides name on first sign-in
       String? displayName;
       String? actualEmail;
       String? profileImageUrl;
-
-      bool hasAppleName =
-          (appleCredential.givenName != null &&
-              appleCredential.givenName!.isNotEmpty) ||
-          (appleCredential.familyName != null &&
-              appleCredential.familyName!.isNotEmpty);
-      bool hasAppleEmail =
-          appleCredential.email != null && appleCredential.email!.isNotEmpty;
-
+      
+      // Check if this is first sign-in (Apple provides data)
+      bool hasAppleName = (appleCredential.givenName != null && appleCredential.givenName!.isNotEmpty) ||
+                         (appleCredential.familyName != null && appleCredential.familyName!.isNotEmpty);
+      bool hasAppleEmail = appleCredential.email != null && appleCredential.email!.isNotEmpty;
+      
       if (hasAppleName || hasAppleEmail) {
+        // FIRST SIGN-IN - Apple provides actual user data
         printLog("=== FIRST SIGN-IN DETECTED ===");
-
+        
+        // Get EXACT name from Apple
         if (hasAppleName) {
-          displayName =
-              '${appleCredential.givenName ?? ""} ${appleCredential.familyName ?? ""}'
-                  .trim();
+          displayName = '${appleCredential.givenName ?? ""} ${appleCredential.familyName ?? ""}'.trim();
           printLog("Using EXACT Apple provided name: $displayName");
         }
-
+        
+        // Get EXACT email from Apple
         if (hasAppleEmail) {
           actualEmail = appleCredential.email;
           printLog("Using EXACT Apple provided email: $actualEmail");
         }
-
-        profileImageUrl = _generateAppleProfilePicture(
-            displayName, appleCredential.userIdentifier);
-
+        
+        // Generate Apple profile picture URL (Apple doesn't provide direct profile pics)
+        // Use a generic Apple-style avatar or user's initials
+        profileImageUrl = _generateAppleProfilePicture(displayName, appleCredential.userIdentifier);
+        printLog("Generated Apple profile picture: $profileImageUrl");
+        
+        // Store the EXACT data in Firebase for future use
         try {
           await authResult.user?.updateDisplayName(displayName);
           if (actualEmail != null) {
             await authResult.user?.updateEmail(actualEmail);
           }
+          // Store photo URL in Firebase user profile
           await authResult.user?.updatePhotoURL(profileImageUrl);
           printLog("EXACT user data stored in Firebase successfully");
         } catch (e) {
           printLog("Error storing user data in Firebase: $e");
         }
+        
       } else {
+        // SUBSEQUENT SIGN-IN - Retrieve EXACT data from Firebase
         printLog("=== SUBSEQUENT SIGN-IN DETECTED ===");
-
+        
+        // Get stored EXACT data from Firebase
         displayName = authResult.user?.displayName;
         actualEmail = authResult.user?.email;
         profileImageUrl = authResult.user?.photoURL;
-
-        printLog(
-            "Retrieved EXACT data from Firebase - Name: $displayName, Email: $actualEmail");
-
+        
+        printLog("Retrieved EXACT data from Firebase - Name: $displayName, Email: $actualEmail, Photo: $profileImageUrl");
+        
+        // If no data in Firebase, use fallbacks
         if (displayName == null || displayName.isEmpty) {
           displayName = "Apple User";
+          printLog("No name in Firebase, using fallback: $displayName");
         }
-
+        
         if (actualEmail == null || actualEmail.isEmpty) {
-          actualEmail =
-              "apple_${appleCredential.userIdentifier}@privaterelay.appleid.com";
+          actualEmail = "apple_${appleCredential.userIdentifier}@privaterelay.appleid.com";
+          printLog("No email in Firebase, using placeholder: $actualEmail");
         }
-
+        
         if (profileImageUrl == null || profileImageUrl.isEmpty) {
-          profileImageUrl = _generateAppleProfilePicture(
-              displayName, appleCredential.userIdentifier);
+          profileImageUrl = _generateAppleProfilePicture(displayName, appleCredential.userIdentifier);
+          printLog("No photo in Firebase, generated: $profileImageUrl");
         }
       }
-
+      
+      // Set the final data for the app
       userEmail = actualEmail ?? "";
-
+      
+      // Save profile image from URL to File (same as Google Sign-In)
       mProfileImg = await Utils.saveImageInStorage(profileImageUrl ?? "");
       printLog("=== FINAL USER DATA ===");
       printLog("Display Name: $displayName");
       printLog("Email: $userEmail");
       printLog("Profile Picture: $mProfileImg");
-
-      final firebaseUser = authResult.user;
-      dynamic firebasedId = firebaseUser?.uid;
+    
+    final firebaseUser = authResult.user;
+    dynamic firebasedId = firebaseUser?.uid;  
 
       printLog("userEmail =====FINAL==> $userEmail");
       printLog("firebasedId ===FINAL==> $firebasedId");
       printLog("displayName ===FINAL==> $displayName");
 
+      // Ensure we pass non-null values to checkAndNavigate
       checkAndNavigate(userEmail ?? "", displayName ?? "Apple User", "3");
     } on FirebaseAuthException catch (e) {
       printLog("Apple FirebaseAuthException =====> ${e.code}: ${e.message}");
       await prDialog.hide();
-
+      
       String errorMessage;
       switch (e.code) {
         case 'user-not-found':
@@ -1028,10 +1113,9 @@ class LoginSocialState extends State<LoginSocial> {
           errorMessage = 'Apple sign-in is not enabled.';
           break;
         default:
-          errorMessage =
-              'An error occurred during Apple sign-in: ${e.message}';
+          errorMessage = 'An error occurred during Apple sign-in: ${e.message}';
       }
-
+      
       Utils.showToast(errorMessage);
     } catch (exception) {
       printLog("Apple Login exception =====> $exception");
@@ -1066,26 +1150,29 @@ class LoginSocialState extends State<LoginSocial> {
         printLog('Login Successfull!');
         Utils.saveUserCreds(
           userID: generalProvider.loginSocialModel.result?[0].id.toString(),
-          userName: generalProvider.loginSocialModel.result?[0].fullName
-              .toString(),
-          userEmail: generalProvider.loginSocialModel.result?[0].email
-              .toString(),
-          userMobile: generalProvider.loginSocialModel.result?[0].mobile
-              .toString(),
-          userImage: generalProvider.loginSocialModel.result?[0].image
-              .toString(),
-          userPremium: generalProvider.loginSocialModel.result?[0].isBuy
-              .toString(),
+          userName:
+              generalProvider.loginSocialModel.result?[0].fullName.toString(),
+          userEmail:
+              generalProvider.loginSocialModel.result?[0].email.toString(),
+          userMobile:
+              generalProvider.loginSocialModel.result?[0].mobile.toString(),
+          userImage:
+              generalProvider.loginSocialModel.result?[0].image.toString(),
+          userPremium:
+              generalProvider.loginSocialModel.result?[0].isBuy.toString(),
           userType: generalProvider.loginSocialModel.result?[0].type.toString(),
         );
 
+        // Set UserID for Next
         Constant.userID =
             generalProvider.loginSocialModel.result?[0].id.toString();
         printLog('Constant userID ==>> ${Constant.userID}');
 
         await homeProvider.setSelectedTab(0);
+        // await sectionDataProvider.getSectionBanner("0", "1");
         await sectionDataProvider.getSectionList("0", "1", 1);
 
+        // Hide Progress Dialog
         await prDialog.hide();
         if (!mounted) return;
         if (!kIsWeb) {
@@ -1098,6 +1185,7 @@ class LoginSocialState extends State<LoginSocial> {
           (Route<dynamic> route) => false,
         );
       } else {
+        // Hide Progress Dialog
         await prDialog.hide();
         if (!mounted) return;
         Utils.showSnackbar(context, "fail",
