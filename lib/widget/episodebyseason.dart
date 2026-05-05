@@ -208,6 +208,22 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
     super.dispose();
   }
 
+  // ✅ NEW: Check if user has active subscription
+  Future<bool> hasActiveSubscription() async {
+    try {
+      final expiryDateStr = await sharedPre.read('subscription_expiry_date');
+      if (expiryDateStr == null || expiryDateStr.isEmpty) {
+        return false;
+      }
+      
+      final expiryDate = DateTime.parse(expiryDateStr);
+      return DateTime.now().isBefore(expiryDate);
+    } catch (e) {
+      print('Error checking subscription: $e');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _buildUIAudioOther();
@@ -628,7 +644,15 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
       
       printLog("🎵 Purchase check - isPaid: $isPaid, isNotBought: $isNotBought");
       
-      if (isPaid && isNotBought) {
+      final sharedPref = SharedPre();
+      final isActive = await sharedPref.read('user_subscription_active');
+      final expiryDate = await sharedPref.read('subscription_expiry_date');
+      final hasSubscription = isActive == "1" &&
+          expiryDate != null &&
+          expiryDate.isNotEmpty &&
+          DateTime.tryParse(expiryDate)?.isAfter(DateTime.now()) == true;
+
+      if (isPaid && isNotBought && !hasSubscription) {
         printLog("🎵 ⛔ Episode is LOCKED - showing purchase dialog");
         if (kIsWeb) {
           openSubscriptionDialog(
@@ -1777,7 +1801,17 @@ class _EpisodeBySeasonState extends State<EpisodeBySeason> {
       if ((episodeProvider.audioList?[index].isBuy ?? 0) == 1) {
         return _buildDownloadBtn(index);
       } else {
-        return const SizedBox.shrink();
+        // ✅ NEW: Check subscription status
+        return FutureBuilder<bool>(
+          future: hasActiveSubscription(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done &&
+                snapshot.data == true) {
+              return _buildDownloadBtn(index);
+            }
+            return const SizedBox.shrink();
+          },
+        );
       }
     } else {
       return _buildDownloadBtn(index);

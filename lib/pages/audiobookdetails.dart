@@ -244,6 +244,23 @@ class AudioBookDetailsState extends State<AudioBookDetails> with RouteAware {
     super.dispose();
   }
 
+  // ✅ NEW: Check if user has active subscription
+  Future<bool> _checkActiveSubscription() async {
+    try {
+      final isActive = await sharedPre.read('user_subscription_active');
+      final expiryDateStr = await sharedPre.read('subscription_expiry_date');
+      if (isActive != '1' || expiryDateStr == null || expiryDateStr.isEmpty) {
+        return false;
+      }
+      
+      final expiryDate = DateTime.parse(expiryDateStr);
+      return DateTime.now().isBefore(expiryDate);
+    } catch (e) {
+      print('Error checking subscription: $e');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
@@ -1925,13 +1942,29 @@ Widget _buildShareDialogItem({
     
     if (episodeProvider.videoList?[position].isVideoPaid.toString() == "1") {
       if (episodeProvider.videoList?[position].isBuy.toString() == "0") {
-        openBottomSheet(
-            position,
-            episodeProvider.videoList?[position].isVideoCoin,
-            episodeProvider.videoList?[position].name,
-            episodeProvider.videoList?[position].id,
-            episodeProvider.videoList?[position].contentId,
-            "video");
+        // ✅ NEW: Check subscription status
+        _checkActiveSubscription().then((hasSubscription) {
+          if (!hasSubscription) {
+            openBottomSheet(
+                position,
+                episodeProvider.videoList?[position].isVideoCoin,
+                episodeProvider.videoList?[position].name,
+                episodeProvider.videoList?[position].id,
+                episodeProvider.videoList?[position].contentId,
+                "video");
+          } else {
+            Utils.openPlayer(
+                context: context,
+                playType: "video",
+                videoId: dataList[position].id ?? 0,
+                videoType: dataList[position].contentType ?? 0,
+                videoUrl: dataList[position].video ?? "",
+                uploadType: dataList[position].videoType.toString(),
+                videoThumb: dataList[position].image ?? "",
+                vStopTime: dataList[position].stopTime ?? 0,
+                contentID: dataList[position].contentId ?? 0);
+          }
+        });
       } else {
         Utils.openPlayer(
             context: context,
@@ -2428,8 +2461,9 @@ Widget _buildShareDialogItem({
     /* Only Music Direct Play*/
 
     if (Constant.userID != null) {
-      // If audio is free (isAudioPaid != 1) OR user has already bought it (isBuy == "1"), play directly
-      if (isAudioPaid != 1 || isBuy == "1") {
+      // If audio is free, or already bought, or the user has an active subscription, play directly.
+      final hasSubscription = await _checkActiveSubscription();
+      if (isAudioPaid != 1 || isBuy == "1" || hasSubscription) {
         musicManager.setInitialMusic(
             position,
             playingType,
@@ -2443,7 +2477,7 @@ Widget _buildShareDialogItem({
             "audioBook",
             "0");
       } else {
-        // Show purchase dialog only if audio is paid AND user hasn't bought it
+        // Show purchase dialog only if audio is paid, user hasn't bought it, and no active subscription
         openBottomSheet(
             position, isAudioCoin, contentName, episodeid, contentid, "audio");
       }

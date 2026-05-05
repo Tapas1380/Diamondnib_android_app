@@ -1557,6 +1557,12 @@ Future<void> _payumoneyInit() async {
     return;
   }
   
+  // ✅ NEW: Handle subscription payment separately
+  if (widget.payType == "Subscription") {
+    await _handleSubscriptionPayment(payu);
+    return;
+  }
+  
   Utils.showProgress(context, prDialog);
   try {
     final String merchantKey = payu.key2 ?? "";
@@ -1821,6 +1827,329 @@ void _startPaymentTimeout(Timer? timer, Completer<Map<String, dynamic>> complete
       Navigator.pop(context, {"status": "timeout", "txnid": txnId});
     }
   });
+}
+
+// ✅ NEW: Handle subscription payment
+Future<void> _handleSubscriptionPayment(dynamic payu) async {
+  Utils.showProgress(context, prDialog);
+  try {
+    final String merchantKey = payu.key2 ?? "";
+    final String salt = payu.key3 ?? "";
+    final bool isLiveEnv = (payu.isLive == "1");
+
+    final String txnId = paymentId ?? Utils.generateRandomOrderID();
+    final String amountRaw = paymentProvider.finalAmount ?? "0";
+    final String amount = double.tryParse(amountRaw)?.toStringAsFixed(2) ?? "0.00";
+
+    // ✅ KEY DIFFERENCE: Product info includes subscription period
+    final String period = widget.productPackage ?? "week";
+    final String productInfo = "Premium Subscription - $period";
+
+    final String firstName = userName ?? "User";
+    final String email = userEmail ?? "user@example.com";
+    final String phone = userMobileNo?.replaceAll("+", "") ?? "9999999999";
+    final String udf1 = "";
+    final String udf2 = "";
+    final String udf3 = "";
+    final String udf4 = "";
+    final String udf5 = "";
+
+    final hashString = "$merchantKey|$txnId|$amount|$productInfo|$firstName|$email|$udf1|$udf2|$udf3|$udf4|$udf5||||||$salt";
+    print("🧩 Subscription Hash String => $hashString");
+    final hash = sha512.convert(utf8.encode(hashString.trim())).toString();
+
+    final String successUrl = "https://app.diamondnib.com/public/payu/subscription/success";
+    final String failureUrl = "https://app.diamondnib.com/public/payu/subscription/failure";
+    final String payuBaseUrl = isLiveEnv 
+        ? "https://secure.payu.in/_payment" 
+        : "https://test.payu.in/_payment";
+
+    await prDialog.hide();
+
+    String htmlForm = """
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Diamondnib Subscription Payment</title>
+          <style>
+            body {
+              margin: 0;
+              font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              background: linear-gradient(135deg, #1d1e20, #2b2d31);
+              color: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              text-align: center;
+            }
+            .container {
+              background: #232428;
+              padding: 40px;
+              border-radius: 16px;
+              box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+              max-width: 400px;
+              width: 90%;
+              animation: fadeIn 1s ease-in-out;
+            }
+            img { width: 120px; margin-bottom: 20px; }
+            h2 { margin: 0; font-weight: 600; font-size: 1.4rem; color: #f7f7f7; }
+            p { color: #b8b8b8; margin: 12px 0 30px; font-size: 0.95rem; }
+            .loader {
+              border: 5px solid rgba(255, 255, 255, 0.2);
+              border-top: 5px solid #f9b233;
+              border-radius: 50%;
+              width: 60px; height: 60px;
+              animation: spin 1.2s linear infinite;
+              margin: 0 auto 20px;
+            }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            .footer { margin-top: 25px; font-size: 0.8rem; color: #7c7c7c; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <img src="https://static.payu.in/images/merchant_logo.png" alt="PayU" />
+            <h2>Redirecting to PayU Secure Checkout</h2>
+            <p>Please wait while we process your Premium subscription.</p>
+            <div class="loader"></div>
+            <form id="payuForm" action="$payuBaseUrl" method="post">
+              <input type="hidden" name="key" value="$merchantKey" />
+              <input type="hidden" name="txnid" value="$txnId" />
+              <input type="hidden" name="amount" value="$amount" />
+              <input type="hidden" name="productinfo" value="$productInfo" />
+              <input type="hidden" name="firstname" value="$firstName" />
+              <input type="hidden" name="email" value="$email" />
+              <input type="hidden" name="phone" value="$phone" />
+              <input type="hidden" name="surl" value="$successUrl" />
+              <input type="hidden" name="furl" value="$failureUrl" />
+              <input type="hidden" name="service_provider" value="payu_paisa" />
+              <input type="hidden" name="hash" value="$hash" />
+            </form>
+            <div class="footer">Powered by <b>PayU India</b> | © ${DateTime.now().year} Diamondnib</div>
+          </div>
+          <script>
+            setTimeout(() => { document.getElementById('payuForm').submit(); }, 2500);
+          </script>
+        </body>
+      </html>
+      """;
+
+    Completer<Map<String, dynamic>> paymentCompleter = Completer();
+    Timer? timeoutTimer;
+    bool isWebViewOpen = true;
+
+    void cleanup() {
+      timeoutTimer?.cancel();
+      isWebViewOpen = false;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WillPopScope(
+          onWillPop: () async {
+            print("⬅️ Back button pressed - subscription cancelled");
+            cleanup();
+            Navigator.pop(context, {"status": "cancelled", "txnid": txnId});
+            return false;
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text("Premium Subscription"),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  print("⬅️ App bar back pressed - subscription cancelled");
+                  cleanup();
+                  Navigator.pop(context, {"status": "cancelled", "txnid": txnId});
+                },
+              ),
+            ),
+            body: InAppWebView(
+              initialData: InAppWebViewInitialData(data: htmlForm),
+              initialOptions: InAppWebViewGroupOptions(
+                crossPlatform: InAppWebViewOptions(
+                  javaScriptEnabled: true,
+                  useShouldOverrideUrlLoading: true,
+                ),
+              ),
+              shouldOverrideUrlLoading: (controller, navigationAction) async {
+                final url = navigationAction.request.url.toString();
+                print("🔗 URL Intercepted: $url");
+
+                if (_isUpiUrl(url)) {
+                  print("🚀 UPI URL detected: $url");
+                  try {
+                    timeoutTimer?.cancel();
+                    final launched = await launchUrl(
+                      Uri.parse(url),
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (launched) {
+                      print("✅ UPI app launched successfully");
+                      _startPaymentTimeout(timeoutTimer, paymentCompleter, txnId);
+                    }
+                  } catch (e) {
+                    print("❌ Error launching UPI app: $e");
+                  }
+                  return NavigationActionPolicy.CANCEL;
+                }
+
+                return NavigationActionPolicy.ALLOW;
+              },
+              onLoadStop: (controller, url) async {
+                final currentUrl = url?.toString() ?? "";
+                print("🌐 Page loaded: $currentUrl");
+
+                timeoutTimer?.cancel();
+
+                if (currentUrl.startsWith(successUrl)) {
+                  print("🎉 Subscription Success detected via URL");
+                  Navigator.pop(context, {"status": "success", "txnid": txnId});
+                } else if (currentUrl.startsWith(failureUrl)) {
+                  print("❌ Subscription Failure detected via URL");
+                  Navigator.pop(context, {"status": "failure", "txnid": txnId});
+                } else {
+                  _startPaymentTimeout(timeoutTimer, paymentCompleter, txnId);
+                }
+              },
+              onLoadError: (controller, url, code, message) {
+                print("❌ WebView load error: $message");
+                _startPaymentTimeout(timeoutTimer, paymentCompleter, txnId);
+              },
+            ),
+          ),
+        ),
+      ),
+    ).then((result) async {
+      timeoutTimer?.cancel();
+      await _handleSubscriptionPaymentResult(result, txnId, amount, period);
+    });
+
+    _startPaymentTimeout(timeoutTimer, paymentCompleter, txnId);
+
+  } catch (e) {
+    await prDialog.hide();
+    print("⚠️ Subscription Exception: $e");
+    Utils.showSnackbar(context, "Error", "Subscription payment failed", true);
+  }
+}
+
+// ✅ NEW: Handle subscription payment result
+Future<void> _handleSubscriptionPaymentResult(
+  dynamic result, 
+  String txnId, 
+  String amount,
+  String period
+) async {
+  if (result != null && result is Map) {
+    switch (result["status"]) {
+      case "success":
+        print("🎉 Subscription Success - Processing...");
+        await _addSubscriptionTransaction(txnId, amount, period);
+        break;
+
+      case "failure":
+        print("❌ Subscription Failed");
+        await prDialog.hide();
+        Utils.showSnackbar(context, "Failed", "Subscription payment failed", true);
+        break;
+
+      case "cancelled":
+        await prDialog.hide();
+        print("🚫 Subscription Cancelled by user");
+        Utils.showSnackbar(context, "Cancelled", "Subscription was cancelled", true);
+        break;
+
+      case "timeout":
+        print("⏰ Subscription Timeout");
+        Utils.showSnackbar(context, "Timeout", "Payment session expired", true);
+        break;
+
+      default:
+        print("⚠️ Unknown subscription status: ${result["status"]}");
+        Utils.showSnackbar(context, "Info", "Payment session ended", true);
+        break;
+    }
+  } else {
+    print("⚠️ Subscription cancelled or incomplete");
+    Utils.showSnackbar(context, "Info", "Subscription was cancelled", true);
+  }
+}
+
+// ✅ NEW: Add subscription transaction to backend
+Future<void> _addSubscriptionTransaction(
+  String txnId,
+  String amount,
+  String period
+) async {
+  try {
+    Utils.showProgress(context, prDialog);
+
+    Map<String, String> bodyParams = {
+      'user_id': userId ?? '',
+      'payment_id': txnId,
+      'amount': amount,
+      'plan_period': period,
+      'currency_code': widget.currency ?? 'INR',
+    };
+
+    if (strCouponCode != null && strCouponCode!.isNotEmpty) {
+      bodyParams['coupon_code'] = strCouponCode!;
+    }
+
+    print("💰 Calling add_subscription_transaction API for: $txnId");
+    print("📡 Request Body: $bodyParams");
+
+    final response = await http.post(
+      Uri.parse('${Constant.baseurl}add_subscription_transaction'),
+      body: bodyParams,
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    );
+
+    print("📡 Response Status: ${response.statusCode}");
+    print("📡 Response Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (data['status'] == 200) {
+        print("🎉 SUBSCRIPTION ACTIVATED: Premium access granted!");
+
+        isPaymentDone = true;
+
+        // Update subscription status in SharedPreferences
+        final sharedPref = SharedPre();
+        await sharedPref.save('user_subscription_active', '1');
+        await sharedPref.save('subscription_expiry_date', data['data']?['expiry_date'] ?? '');
+
+        // Refresh user profile
+        final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+        await profileProvider.getProfile(context);
+
+        Utils.showSnackbar(context, "Success", "Premium subscription activated!", true);
+
+        if (mounted && Navigator.canPop(context)) {
+          Future.delayed(Duration(seconds: 2), () {
+            Navigator.pop(context, true);
+          });
+        }
+      } else {
+        Utils.showSnackbar(context, "Error", data['message'] ?? "Failed to activate subscription", true);
+      }
+    } else {
+      Utils.showSnackbar(context, "Error", "Subscription API error", true);
+    }
+  } catch (e) {
+    print("❌ Error adding subscription: $e");
+    Utils.showSnackbar(context, "Error", "Error processing subscription", true);
+  } finally {
+    await prDialog.hide();
+  }
 }
 
 // Handle payment result

@@ -13,6 +13,7 @@ use App\Models\Content_Section;
 use App\Models\History;
 use App\Models\Language;
 use App\Models\Reviews;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Exception;
@@ -38,6 +39,20 @@ class ContentController extends Controller
         } catch (Exception $e) {
             return response()->json(array('status' => 400, 'errors' => $e->getMessage()));
         }
+    }
+
+    private function isSubscriptionActive($user_id)
+    {
+        if (!$user_id) {
+            return false;
+        }
+
+        $user = User::where('id', $user_id)->first();
+        if (!$user || $user->subscription_active != 1 || !$user->subscription_expiry_date) {
+            return false;
+        }
+
+        return strtotime($user->subscription_expiry_date) >= strtotime(date('Y-m-d H:i:s'));
     }
 
     public function get_home_banner(Request $request)
@@ -757,6 +772,9 @@ class ContentController extends Controller
                 $content['is_buy'] = 0;
                 if ($content['content_type'] == 2) {
                     $content['is_buy'] = $this->common->isBuy($content['content_type'], 0, $user_id, $content_id, 0);
+                    if ($this->isSubscriptionActive($user_id)) {
+                        $content['is_buy'] = 1;
+                    }
                 }
                 $content['is_bookmark'] = $this->common->isBookmark($user_id, $content['content_type'], $content['id']);
 
@@ -825,6 +843,9 @@ class ContentController extends Controller
 
                     $data[$i]['stop_time'] = $this->common->stopTime($content['content_type'], 1, $user_id, $content_id, $data[$i]['id']);
                     $data[$i]['is_buy'] = $this->common->isBuy($content['content_type'], 1, $user_id, $content_id, $data[$i]['id']);
+                    if ($this->isSubscriptionActive($user_id)) {
+                        $data[$i]['is_buy'] = 1;
+                    }
                 }
                 return $this->common->API_Response(200, __('api_msg.get_record_successfully'), $data, $pagination);
             } else {
@@ -889,6 +910,9 @@ class ContentController extends Controller
 
                     $data[$i]['stop_time'] = $this->common->stopTime($content['content_type'], 2, $user_id, $content_id, $data[$i]['id']);
                     $data[$i]['is_buy'] = $this->common->isBuy($content['content_type'], 2, $user_id, $content_id, $data[$i]['id']);
+                    if ($this->isSubscriptionActive($user_id)) {
+                        $data[$i]['is_buy'] = 1;
+                    }
                 }
                 return $this->common->API_Response(200, __('api_msg.get_record_successfully'), $data, $pagination);
             } else {
@@ -953,6 +977,9 @@ class ContentController extends Controller
 
                     $data[$i]['stop_time'] = $this->common->stopTime($content['content_type'], 0, $user_id, $content_id, $data[$i]['id']);
                     $data[$i]['is_buy'] = $this->common->isBuy($content['content_type'], 0, $user_id, $content_id, $data[$i]['id']);
+                    if ($this->isSubscriptionActive($user_id)) {
+                        $data[$i]['is_buy'] = 1;
+                    }
                 }
                 return $this->common->API_Response(200, __('api_msg.get_record_successfully'), $data, $pagination);
             } else {

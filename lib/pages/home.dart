@@ -13,10 +13,13 @@ import 'package:diamondnib/pages/setting.dart';
 import 'package:diamondnib/pages/videosbyid.dart';
 import 'package:diamondnib/pages/viewall.dart';
 import 'package:diamondnib/provider/profileprovider.dart';
+import 'package:diamondnib/provider/generalprovider.dart';
 import 'package:diamondnib/provider/showdetailsprovider.dart';
+import 'package:diamondnib/pages/subscription_page.dart';
 import 'package:diamondnib/shimmer/shimmerutils.dart';
 import 'package:diamondnib/utils/adhelper.dart';
 import 'package:diamondnib/utils/sharedpre.dart';
+
 import 'package:diamondnib/utils/strings.dart';
 import 'package:diamondnib/webwidget/footerweb.dart';
 import 'package:diamondnib/model/genresmodel.dart' as type;
@@ -64,7 +67,11 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
   late SectionDataProvider sectionDataProvider;
   final FirebaseAuth auth = FirebaseAuth.instance;
   SharedPre sharedPref = SharedPre();
+  bool _showSubscriptionIcon = true;
   CarouselController carouselController = CarouselController();
+
+  int _subscriptionVisibilityRetryCount = 0;
+
   final tabScrollController = ScrollController();
   late ScrollController _scrollController;
   late ListObserverController observerController;
@@ -122,15 +129,68 @@ bool _hasShownPopupOnColdStart = false;
     currentPage = widget.pageName ?? "";
     profileProvider.getProfile(context);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       homeProvider.setLoading(true);
       sectionDataProvider.setLoading(true);
+
+      final generalProvider =
+          Provider.of<GeneralProvider>(context, listen: false);
+      await generalProvider.getGeneralsetting(context);
+
+      _subscriptionVisibilityRetryCount = 0;
+      _loadSubscriptionVisibility(retryIfMissing: true);
       _getData(1);
     });
 
     if (!kIsWeb) {
       OneSignal.Notifications.addClickListener(_handleNotificationOpened);
     }
+  }
+
+  Future<void> _loadSubscriptionVisibility({bool retryIfMissing = false}) async {
+    final keysToCheck = <String>[
+      'subscription',
+      'subscription_enable',
+      'subscription_enabled',
+      'subscription_status',
+      'premium',
+      'premium_enable',
+      'premium_enabled',
+      'premium_status',
+    ];
+
+    String? raw;
+    for (final k in keysToCheck) {
+      raw = await sharedPref.read(k);
+      if (raw != null && raw.toString().isNotEmpty) {
+        break;
+      }
+    }
+
+    if (retryIfMissing && (raw == null || raw.toString().isEmpty)) {
+      if (_subscriptionVisibilityRetryCount < 5) {
+        _subscriptionVisibilityRetryCount++;
+        Future.delayed(const Duration(seconds: 1), () {
+          if (!mounted) return;
+          _loadSubscriptionVisibility(retryIfMissing: true);
+        });
+      }
+    }
+
+    bool nextValue = true;
+    if (raw != null) {
+      final v = raw.toString().trim().toLowerCase();
+      if (v == '0' || v == 'false' || v == 'no' || v == 'off') {
+        nextValue = false;
+      } else if (v == '1' || v == 'true' || v == 'yes' || v == 'on') {
+        nextValue = true;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _showSubscriptionIcon = nextValue;
+    });
   }
 
   // What to do when the user opens/taps on a notification
@@ -296,6 +356,8 @@ bool _hasShownPopupOnColdStart = false;
     if (state == AppLifecycleState.resumed) {
       // mark that the app was resumed from background so we don't show popup again
       _hasResumedFromBackground = true;
+      _subscriptionVisibilityRetryCount = 0;
+      _loadSubscriptionVisibility(retryIfMissing: true);
     }
   }
 
@@ -651,6 +713,26 @@ Future<void> _showPurchasePopup() async {
                     ),
                   ),
                 ),
+                if (_showSubscriptionIcon)
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SubscriptionPage(),
+                        ),
+                      ).then((value) => _getData(1));
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(5, 5, 10, 5),
+                      width: 20,
+                      child: const Icon(
+                        Icons.diamond_outlined,
+                        size: 28,
+                        color: white,
+                      ),
+                    ),
+                  ),
               ],
               automaticallyImplyLeading: false,
               backgroundColor: colorPrimary,
@@ -671,8 +753,8 @@ Future<void> _showPurchasePopup() async {
                     multilanguage: true,
                     color: white,
                     text: "home",
-                    fontsizeNormal: 15,
-                    fontweight: FontWeight.w600,
+                    fontsizeNormal: 17,
+                    fontweight: FontWeight.w700,
                   ),
                 ),
               ), // This is the title in the app bar.
@@ -767,6 +849,10 @@ Future<void> _showPurchasePopup() async {
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 35),
                   decoration: BoxDecoration(
+                      color: homeProvider.selectedIndex == index
+                          ? white.withOpacity(0.08)
+                          : transparentColor,
+                      borderRadius: BorderRadius.circular(18),
                       border: Border(
                           bottom: BorderSide(
                               width: 2,
@@ -786,9 +872,11 @@ Future<void> _showPurchasePopup() async {
                             ? (sectionTypeList?[index - 1].name.toString() ??
                                 "")
                             : "",
-                    fontsizeNormal: 12,
-                    fontweight: FontWeight.w600,
-                    fontsizeWeb: 14,
+                    fontsizeNormal: 13,
+                    fontweight: homeProvider.selectedIndex == index
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                    fontsizeWeb: 15,
                     maxline: 1,
                     overflow: TextOverflow.ellipsis,
                     textalign: TextAlign.center,
@@ -1029,26 +1117,47 @@ Future<void> _showPurchasePopup() async {
                                     minHeight: 0,
                                     maxHeight: 45,
                                     minWidth: 0,
-                                    maxWidth: 120,
+                                    maxWidth: 145,
                                   ),
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: colorAccent,
-                                    borderRadius: BorderRadius.circular(5),
+                                    borderRadius: BorderRadius.circular(12),
                                     shape: BoxShape.rectangle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.25),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                  child: MyText(
-                                    color: white,
-                                    maxline: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    multilanguage: true,
-                                    text: "playnow",
-                                    textalign: TextAlign.center,
-                                    fontsizeNormal: 16,
-                                    fontsizeWeb: 18,
-                                    fontweight: FontWeight.w700,
-                                    fontstyle: FontStyle.normal,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: white,
+                                        size: 22,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: MyText(
+                                          color: white,
+                                          maxline: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          multilanguage: true,
+                                          text: "playnow",
+                                          textalign: TextAlign.center,
+                                          fontsizeNormal: 14,
+                                          fontsizeWeb: 18,
+                                          fontweight: FontWeight.w700,
+                                          fontstyle: FontStyle.normal,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -1070,23 +1179,21 @@ Future<void> _showPurchasePopup() async {
                                     minWidth: 0,
                                     maxWidth: 130,
                                   ),
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: transparentColor,
-                                    borderRadius: BorderRadius.circular(5),
+                                    borderRadius: BorderRadius.circular(12),
                                     shape: BoxShape.rectangle,
+                                    border: Border.all(
+                                        color: white.withOpacity(0.6),
+                                        width: 1),
                                   ),
                                   child: Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceEvenly,
                                     children: [
-                                      // MyImage(
-                                      //   imagePath: "ic_info.png",
-                                      //   height: 12,
-                                      //   width: 12,
-                                      //   color: white,
-                                      // ),
                                       const Icon(
                                         Icons.info_outline,
                                         size: 20,
@@ -1103,9 +1210,9 @@ Future<void> _showPurchasePopup() async {
                                           multilanguage: true,
                                           text: "moreinfo",
                                           textalign: TextAlign.center,
-                                          fontsizeNormal: 15,
+                                          fontsizeNormal: 14,
                                           fontsizeWeb: 18,
-                                          fontweight: FontWeight.w700,
+                                          fontweight: FontWeight.w600,
                                           fontstyle: FontStyle.normal,
                                         ),
                                       ),
@@ -1421,9 +1528,9 @@ Future<void> _showPurchasePopup() async {
                               : continueWatchingList?[index].title.toString() ??
                                   "",
                           textalign: TextAlign.left,
-                          fontsizeNormal: 11,
-                          fontweight: FontWeight.w600,
-                          fontsizeWeb: 10,
+                          fontsizeNormal: 12,
+                          fontweight: FontWeight.w700,
+                          fontsizeWeb: 11,
                           maxline: 1,
                           overflow: TextOverflow.ellipsis,
                           fontstyle: FontStyle.normal,
@@ -1438,7 +1545,7 @@ Future<void> _showPurchasePopup() async {
                               "${formatNumber(continueWatchingList?[index].totalUserPlay ?? 0)} Play",
                           textalign: TextAlign.left,
                           fontsizeNormal: 11,
-                          fontweight: FontWeight.w600,
+                          fontweight: FontWeight.w500,
                           fontsizeWeb: 10,
                           maxline: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1497,9 +1604,9 @@ Future<void> _showPurchasePopup() async {
                                 text:
                                     sectionList?[index].title.toString() ?? "",
                                 textalign: TextAlign.left,
-                                fontsizeNormal: 14,
-                                fontweight: FontWeight.w600,
-                                fontsizeWeb: 16,
+                                fontsizeNormal: 16,
+                                fontweight: FontWeight.w700,
+                                fontsizeWeb: 18,
                                 multilanguage: false,
                                 maxline: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1533,8 +1640,8 @@ Future<void> _showPurchasePopup() async {
                                         color: colorAccent,
                                         text: 'seeall',
                                         textalign: TextAlign.center,
-                                        fontsizeNormal: 12,
-                                        fontweight: FontWeight.w500,
+                                        fontsizeNormal: 13,
+                                        fontweight: FontWeight.w600,
                                         fontsizeWeb: 16,
                                         multilanguage: true,
                                         maxline: 1,
@@ -1580,8 +1687,6 @@ Future<void> _showPurchasePopup() async {
       return square(1, sectionList?[index].data);
     } else if ((sectionList?[index].screenLayout ?? "") == "details_square") {
       return newRelease(1, sectionList?[index].data);
-    } else if ((sectionList?[index].screenLayout ?? "") == "big_square") {
-      return bestSellingStories(1, sectionList?[index].data);
     } else if ((sectionList?[index].screenLayout ?? 0) == "language") {
       return languageLayout(1, sectionList?[index].data);
     } else if ((sectionList?[index].screenLayout ?? "") == "small_square") {
@@ -1792,7 +1897,7 @@ Future<void> _showPurchasePopup() async {
                     text: sectionDataList?[index].title.toString() ?? "",
                     textalign: TextAlign.start,
                     fontsizeNormal: 14,
-                    fontweight: FontWeight.w600,
+                    fontweight: FontWeight.w700,
                     fontsizeWeb: 15,
                     multilanguage: false,
                     maxline: 1,
@@ -1906,9 +2011,9 @@ Future<void> _showPurchasePopup() async {
                     color: white,
                     text: sectionDataList?[index].title.toString() ?? "",
                     textalign: TextAlign.center,
-                    fontsizeNormal: 14,
-                    fontweight: FontWeight.w600,
-                    fontsizeWeb: 15,
+                    fontsizeNormal: 15,
+                    fontweight: FontWeight.w700,
+                    fontsizeWeb: 16,
                     multilanguage: false,
                     maxline: 1,
                     overflow: TextOverflow.ellipsis,

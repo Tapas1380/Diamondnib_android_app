@@ -1040,6 +1040,151 @@ class HomeController extends Controller
             return response()->json(array('status' => 400, 'errors' => $e->getMessage()));
         }
     }
+
+    /**
+     * Check if user has active subscription
+     * @param Request $request
+     * @return array
+     */
+    public function check_subscription_active(Request $request)
+    {
+        try {
+            $validation = Validator::make(
+                $request->all(),
+                [
+                    'user_id' => 'required|numeric',
+                ],
+                [
+                    'user_id.required' => __('api_msg.user_id_is_required'),
+                ]
+            );
+
+            if ($validation->fails()) {
+                return $this->common->API_Response(400, $validation->errors()->first());
+            }
+
+            $user = User::where('id', $request->user_id)->first();
+
+            if (!$user) {
+                return $this->common->API_Response(400, __('api_msg.user_not_found'));
+            }
+
+            $is_active = 0;
+            $days_remaining = 0;
+            $expiry_date = null;
+
+            // Check if subscription is still active
+            if ($user->subscription_active == 1 && $user->subscription_expiry_date) {
+                $expiry_time = strtotime($user->subscription_expiry_date);
+                $current_time = time();
+
+                if ($current_time < $expiry_time) {
+                    $is_active = 1;
+                    $days_remaining = floor(($expiry_time - $current_time) / (60 * 60 * 24));
+                    $expiry_date = $user->subscription_expiry_date;
+                } else {
+                    // Subscription expired - update user status
+                    User::where('id', $request->user_id)->update([
+                        'subscription_active' => 0,
+                    ]);
+                }
+            }
+
+            $response_data = [
+                'is_active' => $is_active,
+                'expiry_date' => $expiry_date,
+                'plan_type' => $user->subscription_plan_type ?? 'week',
+                'days_remaining' => $days_remaining,
+            ];
+
+            return $this->common->API_Response(200, 'Subscription status retrieved', $response_data);
+
+        } catch (Exception $e) {
+            return response()->json(array('status' => 400, 'errors' => $e->getMessage()));
+        }
+    }
+
+    /**
+     * Add subscription transaction
+     * @param Request $request
+     * @return array
+     */
+    public function add_subscription_transaction(Request $request)
+    {
+        try {
+            $validation = Validator::make(
+                $request->all(),
+                [
+                    'user_id' => 'required|numeric',
+                    'payment_id' => 'required|string',
+                    'amount' => 'required|numeric',
+                    'plan_period' => 'required|in:week,month',
+                ],
+                [
+                    'user_id.required' => __('api_msg.user_id_is_required'),
+                    'payment_id.required' => 'Payment ID is required',
+                    'amount.required' => 'Amount is required',
+                    'plan_period.required' => 'Plan period is required',
+                ]
+            );
+
+            if ($validation->fails()) {
+                return $this->common->API_Response(400, $validation->errors()->first());
+            }
+
+            $user_id = $request->user_id;
+            $payment_id = $request->payment_id;
+            $amount = $request->amount;
+            $plan_period = $request->plan_period;
+            $coupon_code = isset($request->coupon_code) ? $request->coupon_code : null;
+
+            // Calculate expiry date
+            $expiry_date = now();
+            if ($plan_period == 'month') {
+                $expiry_date = $expiry_date->addMonth();
+            } else {
+                // week
+                $expiry_date = $expiry_date->addWeek();
+            }
+
+            // Update user subscription status
+            User::where('id', $user_id)->update([
+                'subscription_active' => 1,
+                'subscription_expiry_date' => $expiry_date,
+                'subscription_plan_type' => $plan_period,
+                'subscription_payment_id' => $payment_id,
+            ]);
+
+            // Create transaction record
+            $transaction = new Transaction();
+            $transaction->user_id = $user_id;
+            $transaction->package_id = 0; // 0 for subscription
+            $transaction->description = "Subscription Payment - $plan_period";
+            $transaction->price = $amount;
+            $transaction->coin = 0; // No coins for subscription
+            $transaction->transaction_id = $payment_id;
+            $transaction->status = 1;
+            $transaction->save();
+
+            // Send confirmation email
+            $user_email = User::where('id', $user_id)->first();
+            if ($user_email && isset($user_email)) {
+                $this->common->Send_Mail(2, $user_email);
+            }
+
+            $response_data = [
+                'expiry_date' => $expiry_date->format('Y-m-d H:i:s'),
+                'plan_type' => $plan_period,
+                'message' => 'Subscription activated successfully',
+            ];
+
+            return $this->common->API_Response(200, 'Subscription activated successfully', $response_data);
+
+        } catch (Exception $e) {
+            return response()->json(array('status' => 400, 'errors' => $e->getMessage()));
+        }
+    }
+
     public function get_artist_suggestion_list(Request $request)
     {
         try {

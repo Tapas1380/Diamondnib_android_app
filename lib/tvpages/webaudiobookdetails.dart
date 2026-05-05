@@ -1876,8 +1876,16 @@ class WebAudioBookDetailsState extends State<WebAudioBookDetails> {
     /* Only Music Direct Play*/
 
     if (Constant.userID != null) {
+      final sharedPref = SharedPre();
+      final isActive = await sharedPref.read('user_subscription_active');
+      final expiryDate = await sharedPref.read('subscription_expiry_date');
+      final hasSubscription = isActive == "1" &&
+          expiryDate != null &&
+          expiryDate.isNotEmpty &&
+          DateTime.tryParse(expiryDate)?.isAfter(DateTime.now()) == true;
+
       if (isAudioPaid == 1) {
-        if (isBuy == "0") {
+        if (isBuy == "0" && !hasSubscription) {
           openSubscriptionDialog(
             position,
             isAudioCoin,

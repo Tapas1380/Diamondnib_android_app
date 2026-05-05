@@ -11,6 +11,7 @@ import 'package:diamondnib/utils/color.dart';
 import 'package:diamondnib/utils/constant.dart';
 import 'package:diamondnib/utils/dimens.dart';
 import 'package:diamondnib/utils/musicmanager.dart';
+import 'package:diamondnib/utils/sharedpre.dart';
 import 'package:diamondnib/utils/utils.dart';
 import 'package:diamondnib/widget/musicutils.dart';
 import 'package:diamondnib/widget/myfileimage.dart';
@@ -83,6 +84,7 @@ class _MusicDetailsState extends State<MusicDetails>
 
   late MusicProvider musicProvider;
   int currentstoptime = 0;
+  bool _hasActiveSubscription = false;
 
   // final ReviewHelper _reviewHelper = ReviewHelper();
 
@@ -108,7 +110,8 @@ class _MusicDetailsState extends State<MusicDetails>
     connectivityProvider = Provider.of<ConnectivityProvider>(context, listen: false);
     _scrollcontroller = ScrollController();
 
-  _initAudioPositionHandling();
+    _initAudioPositionHandling();
+    _loadSubscriptionState();
 
   // Post-frame callback for actions that require MediaQuery or mounted context
   WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -418,10 +421,15 @@ void _initAudioPositionHandling() {
               // Found the episode in the list - check its current status
               final isPaid = (episode.isAudioPaid == 1);
               final isNotBought = (episode.isBuy == 0 || episode.isBuy?.toString() == '0');
-              isLockedInList = isPaid && isNotBought;
+              
+              // ✅ NEW: Check subscription status
+              final hasSubscription = await _checkActiveSubscription();
+              final isLockedByPayment = isPaid && isNotBought && !hasSubscription;
+              
+              isLockedInList = isLockedByPayment;
               print('🔒 ✅ Found episode in musicDetailProvider:');
               print('🔒   - ID: ${episode.id}, Title: ${episode.name}');
-              print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}');
+              print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}, hasSubscription: $hasSubscription');
               print('🔒   - LOCKED: $isLockedInList');
               
               // 🔓 Update MediaItem extras with fresh data
@@ -444,10 +452,15 @@ void _initAudioPositionHandling() {
                 foundInList = true;
                 final isPaid = (episode.isAudioPaid == 1);
                 final isNotBought = (episode.isBuy == 0 || episode.isBuy?.toString() == '0');
-                isLockedInList = isPaid && isNotBought;
+                
+                // ✅ NEW: Check subscription status
+                final hasSubscription = await _checkActiveSubscription();
+                final isLockedByPayment = isPaid && isNotBought && !hasSubscription;
+                
+                isLockedInList = isLockedByPayment;
                 print('🔒 ✅ Found episode in EpisodeProvider:');
                 print('🔒   - ID: ${episode.id}, Title: ${episode.name}');
-                print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}');
+                print('🔒   - isAudioPaid: ${episode.isAudioPaid}, isBuy: ${episode.isBuy}, hasSubscription: $hasSubscription');
                 print('🔒   - LOCKED: $isLockedInList');
                 
                 // 🔓 Update MediaItem extras
@@ -467,7 +480,7 @@ void _initAudioPositionHandling() {
           final isBuy = currentItem.extras!['is_buy'];
           final isPaid = (isAudioPaid == 1 || isAudioPaid == '1' || isAudioPaid?.toString() == '1');
           final isNotBought = (isBuy == 0 || isBuy == '0' || isBuy?.toString() == '0');
-          isLockedInList = isPaid && isNotBought;
+          isLockedInList = isPaid && isNotBought && ! _hasActiveSubscription;
           print('🔒 Episode not in any list, using MediaItem.extras:');
           print('🔒   - is_audio_paid: $isAudioPaid, is_buy: $isBuy');
           print('🔒   - LOCKED: $isLockedInList');
@@ -919,9 +932,11 @@ Future<void> _playAudio(MediaItem mediaItem, String audioUrl) async {
 
 _checkPremiumPlayPause() async {
   final currentItem = audioPlayer.sequenceState?.currentSource?.tag as MediaItem?;
+  final hasSubscription = await _checkActiveSubscription();
   
   if (currentItem?.extras?['is_audio_paid'] == 1 &&
-      currentItem?.extras?['is_buy'] == 0) {
+      currentItem?.extras?['is_buy'] == 0 &&
+      !hasSubscription) {
     await Navigator.push(
       context,
       PageRouteBuilder(
@@ -1709,7 +1724,8 @@ StreamBuilder<PlayerState>(
                     builder: (context, snapshot) {
                       final currentItem = audioPlayer.sequenceState?.currentSource?.tag as MediaItem?;
                       if (currentItem?.extras?['is_audio_paid'] == 1 &&
-                          currentItem?.extras?['is_buy'] == 0) {
+                          currentItem?.extras?['is_buy'] == 0 &&
+                          ! _hasActiveSubscription) {
                         audioPlayer.pause();
                       } else if (currentItem?.extras?['url'] != null) {
                         _playAudio(currentItem!, currentItem.extras!['url']).then((_) {
@@ -2441,9 +2457,10 @@ Widget buildPodcastEpisode() {
                   if (musicDetailProvider
                           .podcastEpisodeList?[index].isAudioPaid ==
                       1) {
+                    final hasSubscription = await _checkActiveSubscription();
                     if (musicDetailProvider
                             .podcastEpisodeList?[index].isBuy ==
-                        1) {
+                        1 || hasSubscription) {
                       musicManager.setInitialMusic(
                           index,
                           musicDetailProvider
@@ -2976,6 +2993,42 @@ Widget buildPodcastEpisode() {
     final musicDetailProvider =
         Provider.of<MusicDetailProvider>(context, listen: false);
     await musicDetailProvider.getAddContentPlay(3, episodeID, 1, contentId);
+  }
+
+  Future<void> _loadSubscriptionState() async {
+    final active = await _checkActiveSubscription();
+    if (mounted) {
+      setState(() {
+        _hasActiveSubscription = active;
+      });
+    }
+  }
+
+  /* ✅ NEW: Check if user has active subscription */
+  Future<bool> _checkActiveSubscription() async {
+    try {
+      final sharedPref = SharedPre();
+      final isActive = await sharedPref.read('user_subscription_active');
+      final expiryDate = await sharedPref.read('subscription_expiry_date');
+
+      if (isActive != "1" || expiryDate == null || expiryDate.isEmpty) {
+        return false;
+      }
+
+      // Check if expiry date is in future
+      try {
+        final expiry = DateTime.parse(expiryDate);
+        final hasSubscription = DateTime.now().isBefore(expiry);
+        print("🎯 Subscription check: $hasSubscription, Expiry: $expiryDate");
+        return hasSubscription;
+      } catch (e) {
+        print("❌ Error parsing expiry date: $e");
+        return false;
+      }
+    } catch (e) {
+      print("❌ Error checking subscription: $e");
+      return false;
+    }
   }
 
 /* Music And PodcastEpisode Like */

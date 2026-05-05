@@ -1,7 +1,22 @@
+import 'package:diamondnib/utils/sharedpre.dart';
+import 'package:diamondnib/utils/utils.dart';
+import 'package:diamondnib/utils/constant.dart';
+import 'package:diamondnib/subscription/allpayment.dart';
 import 'package:flutter/material.dart';
 
 class SubscriptionPage extends StatelessWidget {
   const SubscriptionPage({super.key});
+
+  Future<Map<String, String>> _readPlanConfig() async {
+    final sharedPref = SharedPre();
+    final rawPrice = await sharedPref.read('subscription_plan_price');
+    final rawPeriod = await sharedPref.read('subscription_plan_period');
+
+    return {
+      'price': (rawPrice ?? '399').toString(),
+      'period': (rawPeriod ?? 'week').toString(),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,26 +27,40 @@ class SubscriptionPage extends StatelessWidget {
         elevation: 0,
         title: const Text('Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _premiumCard(),
-                  const SizedBox(height: 14),
-                  _priceCard(),
-                  const SizedBox(height: 14),
-                  _infoCard(),
-                  const SizedBox(height: 8),
-                ],
+      body: FutureBuilder<Map<String, String>>(
+        future: _readPlanConfig(),
+        builder: (context, snapshot) {
+          final price = snapshot.data?['price'] ?? '399';
+          final period = snapshot.data?['period'] ?? 'week';
+
+          final periodText = period.toLowerCase() == 'month' ? 'month' : 'week';
+
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _premiumCard(),
+                      const SizedBox(height: 14),
+                      _priceCard(price, periodText),
+                      const SizedBox(height: 14),
+                      _infoCard(),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          _payButton(),
-        ],
+              _payButton(
+                context: context,
+                price: price,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -114,7 +143,7 @@ class SubscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _priceCard() {
+  Widget _priceCard(String price, String periodText) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
@@ -127,18 +156,18 @@ class SubscriptionPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
-          children: const [
-            Text("₹", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w500)),
-            SizedBox(width: 4),
-            Text("399", style: TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w500)),
-            SizedBox(width: 4),
-            Text("/ 3 months", style: TextStyle(color: Colors.white38, fontSize: 14)),
+          children: [
+            const Text("₹", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w500)),
+            const SizedBox(width: 4),
+            Text(price, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w500)),
+            const SizedBox(width: 4),
+            Text("/ $periodText", style: const TextStyle(color: Colors.white38, fontSize: 14)),
           ],
         ),
         const SizedBox(height: 6),
-        const Text(
-          "Auto-renews every 3 months · Cancel anytime",
-          style: TextStyle(color: Colors.white38, fontSize: 12),
+        Text(
+          "Auto-renews every $periodText · Cancel anytime",
+          style: const TextStyle(color: Colors.white38, fontSize: 12),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
@@ -216,7 +245,10 @@ class SubscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _payButton() {
+  Widget _payButton({
+    required BuildContext context,
+    required String price,
+  }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       decoration: BoxDecoration(
@@ -229,17 +261,60 @@ class SubscriptionPage extends StatelessWidget {
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF9333EA), 
-              foregroundColor: Colors.white, // vivid purple
+              foregroundColor: Colors.white,
               shape: const StadiumBorder(),
               elevation: 0,
               shadowColor: Colors.transparent,
             ).copyWith(
               overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.08)),
             ),
-            onPressed: () {},
+            onPressed: () async {
+              // ✅ Check if user is logged in before allowing payment
+              if (Constant.userID == null) {
+                Utils.openLogin(context: context, isHome: false, isReplace: false);
+                return;
+              }
+              
+              // ✅ NEW: Navigate to payment with subscription parameters
+              final config = await _readPlanConfig();
+              final price = config['price'] ?? '399';
+              final period = config['period'] ?? 'week';
+              
+              if (!context.mounted) return;
+              
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllPayment(
+                    payType: "Subscription",  // ✅ NEW TYPE
+                    itemId: "0",
+                    price: price,
+                    itemTitle: "Premium Subscription",
+                    typeId: "0",
+                    coin: "0",
+                    videoType: "0",
+                    productPackage: period,  // week or month
+                    currency: "INR",
+                  ),
+                ),
+              );
+              
+              // Handle payment result
+              if (result == true && context.mounted) {
+                // Show success and navigate back
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Subscription activated successfully!"),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                Navigator.pop(context);
+              }
+            },
             icon: const Icon(Icons.lock_rounded, size: 18, color: Colors.white),
-            label: const Text("Pay ₹399",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
+            label: Text("Pay ₹$price",
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
           ),
         ),
         const SizedBox(height: 8),

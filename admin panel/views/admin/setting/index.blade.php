@@ -96,6 +96,17 @@
                                                     <option value="0" @if($result && isset($result['subscription_status'])){{ $result['subscription_status'] == 0 ? 'selected' : ''}}@endif>Off</option>
                                                 </select>
                                             </div>
+                                            <div class="form-group col-md-4">
+                                                <label>Subscription Price</label>
+                                                <input type="number" name="subscription_plan_price" min="0" value="@if($result && isset($result['subscription_plan_price'])){{$result['subscription_plan_price']}}@endif" class="form-control" placeholder="Enter Subscription Price">
+                                            </div>
+                                            <div class="form-group col-md-4">
+                                                <label>Subscription Period</label>
+                                                <select name="subscription_plan_period" class="form-control">
+                                                    <option value="week" @if($result && isset($result['subscription_plan_period'])){{ $result['subscription_plan_period'] == 'week' ? 'selected' : ''}}@endif>Weekly</option>
+                                                    <option value="month" @if($result && isset($result['subscription_plan_period'])){{ $result['subscription_plan_period'] == 'month' ? 'selected' : ''}}@endif>Monthly</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
