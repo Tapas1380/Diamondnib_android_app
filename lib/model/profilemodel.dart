@@ -48,6 +48,7 @@ class Result {
   int? status;
   int? type;
   int? walletCoin;
+  int? trialUsed;
   String? expiryDate;
   String? apiToken;
   String? emailVerifyToken;
@@ -70,6 +71,7 @@ class Result {
       this.status,
       this.type,
       this.walletCoin,
+      this.trialUsed,
       this.expiryDate,
       this.apiToken,
       this.emailVerifyToken,
@@ -80,26 +82,30 @@ class Result {
       this.bio});
 
   factory Result.fromJson(Map<String, dynamic> json) => Result(
-      id: json["id"],
-      name: json["name"],
-      userName: json["user_name"],
-      fullName: json["full_name"],
-      mobile: json["mobile_number"],
-      email: json["email"],
-      password: json["password"],
-      gender: json["gender"],
-      image: json["image"],
-      status: json["status"],
-      type: json["type"],
-      walletCoin: json["wallet_coin"],
-      expiryDate: json["expiry_date"],
-      apiToken: json["api_token"],
-      emailVerifyToken: json["email_verify_token"],
-      isEmailVerify: json["is_email_verify"],
-      createdAt: json["created_at"],
-      updatedAt: json["updated_at"],
-      isBuy: json["is_buy"],
-      bio: json["bio"]);
+        id: json["id"],
+        name: json["name"],
+        userName: json["user_name"],
+        fullName: json["full_name"],
+        mobile: json["mobile_number"],
+        email: json["email"],
+        password: json["password"],
+        gender: json["gender"],
+        image: json["image"],
+        status: json["status"],
+        type: json["type"],
+        walletCoin: json["wallet_coin"],
+        trialUsed: json["trial_used"] is String
+            ? int.tryParse(json["trial_used"]) ?? 0
+            : (json["trial_used"] ?? 0),
+        expiryDate: json["expiry_date"],
+        apiToken: json["api_token"],
+        emailVerifyToken: json["email_verify_token"],
+        isEmailVerify: json["is_email_verify"],
+        createdAt: json["created_at"],
+        updatedAt: json["updated_at"],
+        isBuy: json["is_buy"],
+        bio: json["bio"],
+      );
 
   Map<String, dynamic> toJson() => {
         "id": id,
@@ -114,6 +120,7 @@ class Result {
         "status": status,
         "type": type,
         "wallet_coin": walletCoin,
+        "trial_used": trialUsed,
         "expiry_date": expiryDate,
         "api_token": apiToken,
         "email_verify_token": emailVerifyToken,

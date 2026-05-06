@@ -2,19 +2,66 @@ import 'package:diamondnib/utils/sharedpre.dart';
 import 'package:diamondnib/utils/utils.dart';
 import 'package:diamondnib/utils/constant.dart';
 import 'package:diamondnib/subscription/allpayment.dart';
+import 'package:diamondnib/webservice/apiservices.dart';
 import 'package:flutter/material.dart';
 
-class SubscriptionPage extends StatelessWidget {
+class SubscriptionPage extends StatefulWidget {
   const SubscriptionPage({super.key});
+
+  @override
+  State<SubscriptionPage> createState() => _SubscriptionPageState();
+}
+
+class _SubscriptionPageState extends State<SubscriptionPage> {
+  bool _hasUsedTrial = false;
+  bool _isLoadingTrialStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTrialStatus();
+  }
+
+  Future<void> _checkTrialStatus() async {
+    try {
+      if (Constant.userID == null) {
+        if (!mounted) return;
+        setState(() {
+          _hasUsedTrial = false;
+          _isLoadingTrialStatus = false;
+        });
+        return;
+      }
+
+      final profile = await ApiService().profile();
+      final trialUsed = profile.result?.isNotEmpty == true ? (profile.result!.first.trialUsed ?? 0) : 0;
+
+      if (!mounted) return;
+      setState(() {
+        _hasUsedTrial = trialUsed == 1;
+        _isLoadingTrialStatus = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasUsedTrial = false;
+        _isLoadingTrialStatus = false;
+      });
+    }
+  }
 
   Future<Map<String, String>> _readPlanConfig() async {
     final sharedPref = SharedPre();
     final rawPrice = await sharedPref.read('subscription_plan_price');
     final rawPeriod = await sharedPref.read('subscription_plan_period');
+    final rawTrialPrice = await sharedPref.read('trial_price');
+    final rawTrialDays = await sharedPref.read('trial_period_days');
 
     return {
       'price': (rawPrice ?? '399').toString(),
       'period': (rawPeriod ?? 'week').toString(),
+      'trial_price': (rawTrialPrice ?? '1').toString(),
+      'trial_days': (rawTrialDays ?? '1').toString(),
     };
   }
 
@@ -29,39 +76,55 @@ class SubscriptionPage extends StatelessWidget {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: FutureBuilder<Map<String, String>>(
-        future: _readPlanConfig(),
-        builder: (context, snapshot) {
-          final price = snapshot.data?['price'] ?? '399';
-          final period = snapshot.data?['period'] ?? 'week';
+      body: _isLoadingTrialStatus
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF9333EA)))
+          : FutureBuilder<Map<String, String>>(
+              future: _readPlanConfig(),
+              builder: (context, snapshot) {
+                final price = snapshot.data?['price'] ?? '399';
+                final period = snapshot.data?['period'] ?? 'week';
 
-          final periodText = period.toLowerCase() == 'month' ? 'month' : 'week';
+                final periodText = period.toLowerCase() == 'month' ? 'month' : 'week';
 
-          return Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _premiumCard(),
-                      const SizedBox(height: 14),
-                      _priceCard(price, periodText),
-                      const SizedBox(height: 14),
-                      _infoCard(),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              ),
-              _payButton(
-                context: context,
-                price: price,
-              ),
-            ],
-          );
-        },
-      ),
+                final trialPrice = snapshot.data?['trial_price'] ?? '1';
+                final trialDaysRaw = snapshot.data?['trial_days'] ?? '1';
+                final trialDays = int.tryParse(trialDaysRaw) ?? 1;
+                final trialPeriod = trialDays == 1 ? '1 day' : '$trialDays days';
+
+                return Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _premiumCard(),
+                            const SizedBox(height: 14),
+                            if (!_hasUsedTrial) ...[
+                              _trialCard(trialDays: trialDays, trialPrice: trialPrice),
+                              const SizedBox(height: 14),
+                            ],
+                            _priceCard(
+                              _hasUsedTrial ? price : trialPrice,
+                              _hasUsedTrial ? periodText : trialPeriod,
+                              isTrial: !_hasUsedTrial,
+                            ),
+                            const SizedBox(height: 14),
+                            _infoCard(),
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _payButton(
+                      context: context,
+                      price: _hasUsedTrial ? price : trialPrice,
+                      isTrial: !_hasUsedTrial,
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 
@@ -102,7 +165,9 @@ class SubscriptionPage extends StatelessWidget {
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 2.8,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 2.8,
             children: const [
               FeatureItem(Icons.lock_open_rounded, "Unlocked", "All content"),
               FeatureItem(Icons.download_rounded, "Download", "Listen offline"),
@@ -119,6 +184,54 @@ class SubscriptionPage extends StatelessWidget {
               const SizedBox(width: 8),
               _statChip("∞", "Skips"),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trialCard({required int trialDays, required String trialPrice}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4C1D95), Color(0xFF7C3AED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF9333EA).withOpacity(0.35)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.15),
+              border: Border.all(color: Colors.white.withOpacity(0.45), width: 1.5),
+            ),
+            child: const Icon(Icons.local_offer_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 12),
+          const Text("🎉 Free Trial Offer",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+          const SizedBox(height: 6),
+          Text(
+            "Try Premium for ${trialDays == 1 ? '1 day' : '$trialDays days'} absolutely FREE!\nThen just ₹$trialPrice to continue.",
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.25)),
+            ),
+            child: const Text("Limited Time Offer",
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -143,13 +256,13 @@ class SubscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _priceCard(String price, String periodText) {
+  Widget _priceCard(String price, String periodText, {bool isTrial = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: isTrial ? const Color(0xFF9333EA).withOpacity(0.10) : Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: isTrial ? const Color(0xFF9333EA).withOpacity(0.30) : Colors.white.withOpacity(0.08)),
       ),
       child: Column(children: [
         Row(
@@ -157,16 +270,22 @@ class SubscriptionPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            const Text("₹", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w500)),
+            if (isTrial) ...[
+              const Text("FREE", style: TextStyle(color: Color(0xFF9333EA), fontSize: 38, fontWeight: FontWeight.w500)),
+            ] else ...[
+              const Text("₹", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w500)),
+              const SizedBox(width: 4),
+              Text(price, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w500)),
+            ],
             const SizedBox(width: 4),
-            Text(price, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w500)),
-            const SizedBox(width: 4),
-            Text("/ $periodText", style: const TextStyle(color: Colors.white38, fontSize: 14)),
+            Text("/ $periodText", style: TextStyle(color: isTrial ? const Color(0xFFB794F4) : Colors.white38, fontSize: 14)),
           ],
         ),
         const SizedBox(height: 6),
         Text(
-          "Auto-renews every $periodText · Cancel anytime",
+          isTrial
+              ? "Then just ₹$price after trial ends · Cancel anytime"
+              : "Auto-renews every $periodText · Cancel anytime",
           style: const TextStyle(color: Colors.white38, fontSize: 12),
           textAlign: TextAlign.center,
         ),
@@ -174,25 +293,32 @@ class SubscriptionPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _badge("Best value"),
-            const SizedBox(width: 8),
-            _badge("Most popular"),
+            if (isTrial) ...[
+              _badge("Risk-Free Trial", Colors.blue),
+              const SizedBox(width: 8),
+              _badge("No Card Required", Colors.green),
+            ] else ...[
+              _badge("Best value"),
+              const SizedBox(width: 8),
+              _badge("Most popular"),
+            ],
           ],
         ),
       ]),
     );
   }
 
-  Widget _badge(String label) {
+  Widget _badge(String label, [Color? color]) {
+    final badgeColor = color ?? const Color(0xFFC084FC);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFC084FC).withOpacity(0.12),
+        color: badgeColor.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFC084FC).withOpacity(0.25)),
+        border: Border.all(color: badgeColor.withOpacity(0.25)),
       ),
       child: Text(label,
-          style: const TextStyle(color: Color(0xFFC084FC), fontSize: 11, fontWeight: FontWeight.w500)),
+          style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.w500)),
     );
   }
 
@@ -234,8 +360,8 @@ class SubscriptionPage extends StatelessWidget {
               Text("•  ", style: TextStyle(color: Color(0x99C084FC), fontSize: 13)),
               Expanded(
                 child: Text(
-                  "FHD/HD availability depends on your internet & device. Not all content supports all resolutions or devices.",
-                  style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.6),
+                  "Payment will be charged to your account upon confirmation. Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period.",
+                  style: TextStyle(color: Colors.white60, fontSize: 12.5, height: 1.7),
                 ),
               ),
             ],
@@ -248,6 +374,7 @@ class SubscriptionPage extends StatelessWidget {
   Widget _payButton({
     required BuildContext context,
     required String price,
+    bool isTrial = false,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -257,10 +384,11 @@ class SubscriptionPage extends StatelessWidget {
       ),
       child: Column(children: [
         SizedBox(
-          width: double.infinity, height: 56,
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9333EA), 
+              backgroundColor: isTrial ? Colors.blue : const Color(0xFF9333EA),
               foregroundColor: Colors.white,
               shape: const StadiumBorder(),
               elevation: 0,
@@ -274,46 +402,70 @@ class SubscriptionPage extends StatelessWidget {
                 Utils.openLogin(context: context, isHome: false, isReplace: false);
                 return;
               }
-              
+
               // ✅ NEW: Navigate to payment with subscription parameters
               final config = await _readPlanConfig();
-              final price = config['price'] ?? '399';
+              final paymentPrice = isTrial
+                  ? (config['trial_price'] ?? '1')
+                  : (config['price'] ?? '399');
+              final trialDaysRaw = config['trial_days'] ?? '1';
+              final trialDays = int.tryParse(trialDaysRaw) ?? 1;
               final period = config['period'] ?? 'week';
-              
+
               if (!context.mounted) return;
-              
+
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => AllPayment(
-                    payType: "Subscription",  // ✅ NEW TYPE
+                    payType: "Subscription",
                     itemId: "0",
-                    price: price,
-                    itemTitle: "Premium Subscription",
+                    price: paymentPrice,
+                    itemTitle: isTrial
+                        ? "Premium Trial (${trialDays == 1 ? '1 Day' : '$trialDays Days'})"
+                        : "Premium Subscription",
                     typeId: "0",
                     coin: "0",
                     videoType: "0",
-                    productPackage: period,  // week or month
+                    productPackage: isTrial ? 'trial' : period,
+                    isTrial: isTrial,
                     currency: "INR",
                   ),
                 ),
               );
-              
+
               // Handle payment result
               if (result == true && context.mounted) {
-                // Show success and navigate back
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Subscription activated successfully!"),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
+                if (isTrial) {
+                  // Trial is marked as used on backend via add_subscription_transaction.
+                  // Refresh trial flag from backend.
+                  await _checkTrialStatus();
+                  setState(() {
+                    _hasUsedTrial = true;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        "Trial activated! Enjoy ${trialDays == 1 ? '1 day' : '$trialDays days'} of Premium.",
+                      ),
+                      backgroundColor: const Color(0xFF7C3AED),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Subscription activated successfully!"),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
                 Navigator.pop(context);
               }
             },
-            icon: const Icon(Icons.lock_rounded, size: 18, color: Colors.white),
-            label: Text("Pay ₹$price",
+            icon: Icon(isTrial ? Icons.play_arrow_rounded : Icons.lock_rounded, size: 18, color: Colors.white),
+            label: Text(isTrial ? "Start Free Trial" : "Pay ₹$price",
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
           ),
         ),

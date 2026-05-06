@@ -54,6 +54,8 @@ class AllPayment extends StatefulWidget {
       videoType,
       productPackage,
       currency;
+  final bool isTrial;
+
   const AllPayment({
     super.key,
     required this.payType,
@@ -64,6 +66,7 @@ class AllPayment extends StatefulWidget {
     required this.coin,
     required this.videoType,
     required this.productPackage,
+    this.isTrial = false,
     required this.currency,
   });
 
@@ -1841,9 +1844,11 @@ Future<void> _handleSubscriptionPayment(dynamic payu) async {
     final String amountRaw = paymentProvider.finalAmount ?? "0";
     final String amount = double.tryParse(amountRaw)?.toStringAsFixed(2) ?? "0.00";
 
-    // ✅ KEY DIFFERENCE: Product info includes subscription period
+    // KEY DIFFERENCE: Product info includes subscription period
     final String period = widget.productPackage ?? "week";
-    final String productInfo = "Premium Subscription - $period";
+    final String productInfo = widget.isTrial
+        ? (widget.itemTitle ?? "Premium Trial")
+        : "Premium Subscription - $period";
 
     final String firstName = userName ?? "User";
     final String email = userEmail ?? "user@example.com";

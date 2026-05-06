@@ -49,6 +49,7 @@ class Result {
   String? image;
   int? status;
   int? walletCoin;
+  int? trialUsed;
   int? deviceType;
   String? deviceToken;
   int? type;
@@ -72,6 +73,7 @@ class Result {
     this.status,
     this.expiryDate,
     this.walletCoin,
+    this.trialUsed,
     this.deviceType,
     this.deviceToken,
     this.apiToken,
@@ -94,6 +96,9 @@ class Result {
         status: json["status"],
         expiryDate: json["expiry_date"],
         walletCoin: json["wallet_coin"],
+        trialUsed: json["trial_used"] is String
+            ? int.tryParse(json["trial_used"]) ?? 0
+            : (json["trial_used"] ?? 0),
         deviceType: json["device_type"],
         deviceToken: json["device_token"],
         apiToken: json["api_token"],
@@ -110,6 +115,7 @@ class Result {
         "full_name": fullName,
         "mobile_number": mobile,
         "wallet_coin": walletCoin,
+        "trial_used": trialUsed,
         "device_type": deviceType,
         "device_token": deviceToken,
         "email": email,
